@@ -116,7 +116,11 @@ const COLORS = {
 };
 
 const MemoryFeed: React.FC = () => {
-  const [currentDate, setCurrentDate] = React.useState(new Date());
+  // Initialize currentDate with the most recent date from memories
+  const [currentDate, setCurrentDate] = React.useState(() => {
+    const today = new Date();
+    return today;
+  });
   const [viewMode, setViewMode] = React.useState<'day' | 'month'>('day');
   const [memories, setMemories] = React.useState<Memory[]>(generateSampleMemories());
   const [isSearchExpanded, setIsSearchExpanded] = React.useState(false);
@@ -125,6 +129,20 @@ const MemoryFeed: React.FC = () => {
   const searchBarWidth = React.useRef(new Animated.Value(0)).current;
   const scrollViewRef = React.useRef<ScrollView>(null);
   const { height: screenHeight } = Dimensions.get('window');
+
+  // Refs for each date section
+  const sectionRefs = React.useRef<{ [key: string]: View | null }>({});
+
+  // Store Y offsets for each section
+  const sectionOffsets = React.useRef<{ [key: string]: number }>({});
+
+  // Update currentDate when memories change to match the most recent content
+  React.useEffect(() => {
+    if (memories.length > 0) {
+      const mostRecentDate = new Date(Math.max(...memories.map(m => m.date.getTime())));
+      setCurrentDate(mostRecentDate);
+    }
+  }, [memories]);
 
   // Group memories by date and sort them
   const memoriesByDate = React.useMemo(() => {
@@ -137,10 +155,10 @@ const MemoryFeed: React.FC = () => {
       grouped[dateKey].push(memory);
     });
     
-    // Sort the dates in reverse chronological order (newest first)
+    // Sort the dates in chronological order (oldest first)
     return Object.fromEntries(
       Object.entries(grouped).sort(([dateA], [dateB]) => 
-        new Date(dateB).getTime() - new Date(dateA).getTime()
+        new Date(dateA).getTime() - new Date(dateB).getTime()
       )
     );
   }, [memories]);
@@ -157,11 +175,18 @@ const MemoryFeed: React.FC = () => {
   };
 
   const handleScroll = (event: any) => {
-    const offsetY = event.nativeEvent.contentOffset.y;
-    const dateIndex = Math.floor(offsetY / screenHeight);
-    const newDate = new Date();
-    newDate.setDate(newDate.getDate() - dateIndex);
-    setCurrentDate(newDate);
+    const scrollY = event.nativeEvent.contentOffset.y;
+    let closestKey: string | null = null;
+    let closestOffset = -Infinity;
+    Object.entries(sectionOffsets.current).forEach(([dateKey, offset]) => {
+      if (offset <= scrollY && offset > closestOffset) {
+        closestOffset = offset;
+        closestKey = dateKey;
+      }
+    });
+    if (closestKey) {
+      setCurrentDate(new Date(closestKey));
+    }
   };
 
   const loadMoreContent = async () => {
@@ -222,31 +247,24 @@ const MemoryFeed: React.FC = () => {
   };
 
   const formatDateHeader = (date: Date) => {
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-
-    if (date.toDateString() === today.toDateString()) {
-      return 'Today';
-    } else if (date.toDateString() === yesterday.toDateString()) {
-      return 'Yesterday';
-    } else {
-      return date.toLocaleDateString('en-US', {
-        weekday: 'long',
-        month: 'long',
-        day: 'numeric'
-      });
-    }
+    return date.toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+    });
   };
 
-  // Scroll to today's content when component mounts
+  // Scroll to the top of the 'today' section (most recent date) when component mounts
   React.useEffect(() => {
-    if (scrollViewRef.current) {
+    if (scrollViewRef.current && memories.length > 0) {
+      // Find the offset for the most recent date (today)
+      const dateKeys = Object.keys(memoriesByDate);
+      const todayKey = dateKeys[dateKeys.length - 1];
+      const offset = sectionOffsets.current[todayKey] || 0;
       setTimeout(() => {
-        scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+        scrollViewRef.current?.scrollTo({ y: offset, animated: false });
       }, 100);
     }
-  }, []);
+  }, [memoriesByDate]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -255,11 +273,7 @@ const MemoryFeed: React.FC = () => {
         <BlurView intensity={80} tint="light" style={styles.header}>
           <View style={styles.headerLeft}>
             <Text style={styles.dateText}>
-              {currentDate.toLocaleDateString('en-US', {
-                month: 'long',
-                day: 'numeric',
-                year: 'numeric'
-              })}
+              {formatDateHeader(currentDate)}
             </Text>
           </View>
           <View style={styles.headerRight}>
@@ -307,41 +321,51 @@ const MemoryFeed: React.FC = () => {
         </Animated.View>
 
         {/* Memory Grid */}
-        <ScrollView 
-          ref={scrollViewRef}
-          style={styles.gridContainer}
-          showsVerticalScrollIndicator={false}
-          onScroll={handleScroll}
-          scrollEventThrottle={16}
-        >
-          {Object.entries(memoriesByDate).map(([dateKey, dayMemories]) => (
-            <View key={dateKey} style={styles.dayContainer}>
-              <View style={styles.dateHeader}>
-                <Text style={styles.dateHeaderText}>
-                  {formatDateHeader(new Date(dateKey))}
-                </Text>
+        <View style={styles.scrollContainer}>
+          <ScrollView 
+            ref={scrollViewRef}
+            style={styles.gridContainer}
+            showsVerticalScrollIndicator={false}
+            onScroll={handleScroll}
+            scrollEventThrottle={16}
+          >
+            {Object.entries(memoriesByDate).map(([dateKey, dayMemories], index, array) => (
+              <View 
+                key={dateKey}
+                ref={ref => { sectionRefs.current[dateKey] = ref; }}
+                onLayout={e => { sectionOffsets.current[dateKey] = e.nativeEvent.layout.y; }}
+                style={[
+                  styles.dayContainer,
+                  index < array.length - 1 && styles.dayContainerWithBorder
+                ]}
+              >
+                <View style={styles.dateHeader}>
+                  <Text style={styles.dateHeaderText}>
+                    {formatDateHeader(new Date(dateKey))}
+                  </Text>
+                </View>
+                <View style={styles.grid}>
+                  {dayMemories.map((memory) => (
+                    <MemoryCard
+                      key={memory.id}
+                      type={memory.type}
+                      content={memory.content}
+                      isFavorite={memory.isFavorite}
+                      onPress={() => handleMemoryPress(memory)}
+                      onFavorite={() => handleFavorite(memory.id)}
+                    />
+                  ))}
+                </View>
               </View>
-              <View style={styles.grid}>
-                {dayMemories.map((memory) => (
-                  <MemoryCard
-                    key={memory.id}
-                    type={memory.type}
-                    content={memory.content}
-                    isFavorite={memory.isFavorite}
-                    onPress={() => handleMemoryPress(memory)}
-                    onFavorite={() => handleFavorite(memory.id)}
-                  />
-                ))}
+            ))}
+            
+            {isLoading && (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={COLORS.accent} />
               </View>
-            </View>
-          ))}
-          
-          {isLoading && (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color={COLORS.accent} />
-            </View>
-          )}
-        </ScrollView>
+            )}
+          </ScrollView>
+        </View>
 
         {/* Scroll to Today Button */}
         <TouchableOpacity 
@@ -409,12 +433,20 @@ const styles = StyleSheet.create({
     top: 14,
     padding: 4,
   },
+  scrollContainer: {
+    flex: 1,
+    overflow: 'hidden',
+  },
   gridContainer: {
     flex: 1,
   },
   dayContainer: {
     minHeight: Dimensions.get('window').height,
     paddingBottom: 20,
+  },
+  dayContainerWithBorder: {
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.shadow,
   },
   dateHeader: {
     paddingHorizontal: 16,
