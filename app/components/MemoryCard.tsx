@@ -24,6 +24,8 @@ const COLORS = {
   shadow: 'rgba(0, 0, 0, 0.08)',
   favorite: '#FF2D55',
   favoriteBackground: 'rgba(255, 45, 85, 0.1)',
+  cardBackground: '#FFFFFF',
+  cardBorder: 'rgba(0, 0, 0, 0.1)',
 };
 
 const MemoryCard: React.FC<MemoryCardProps> = ({
@@ -167,12 +169,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 1,
     shadowRadius: 12,
     elevation: 4,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
   },
   content: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.cardBackground,
   },
   image: {
     width: '100%',
@@ -242,7 +246,10 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.cardBackground,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+    borderRadius: 16,
   },
   voiceDuration: {
     marginTop: 8,
@@ -252,7 +259,10 @@ const styles = StyleSheet.create({
   textContainer: {
     flex: 1,
     padding: 16,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.cardBackground,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+    borderRadius: 16,
   },
   sender: {
     fontSize: 14,
@@ -269,8 +279,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.cardBackground,
     padding: 16,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+    borderRadius: 16,
   },
   restaurantName: {
     fontSize: 15,
@@ -293,8 +306,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.cardBackground,
     padding: 16,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+    borderRadius: 16,
   },
   locationName: {
     fontSize: 15,
@@ -307,8 +323,11 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.cardBackground,
     padding: 16,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
+    borderRadius: 16,
   },
   linkTitle: {
     fontSize: 15,
