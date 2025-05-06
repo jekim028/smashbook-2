@@ -1,15 +1,16 @@
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import React from 'react';
-import { ActivityIndicator, Animated, Dimensions, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { collection, onSnapshot, orderBy, query, Timestamp, where } from 'firebase/firestore';
+import React, { useEffect } from 'react';
+import { ActivityIndicator, Animated, Dimensions, Linking, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { auth, db } from '../../constants/Firebase';
 import AddContentModal from './AddContentModal';
-import MemoryCard from './MemoryCard';
 
 interface Memory {
   id: string;
   type: 'photo' | 'note' | 'voice' | 'text' | 'reel' | 'tiktok' | 'restaurant' | 'location' | 'link';
   content: any;
-  date: Date;
+  date: Timestamp;
   isFavorite: boolean;
 }
 
@@ -95,7 +96,7 @@ const generateSampleMemories = (): Memory[] => {
         id: `${i}-${j}`,
         type,
         content,
-        date: new Date(date),
+        date: Timestamp.fromDate(new Date(date)),
         isFavorite: Math.random() > 0.7
       });
     }
@@ -116,23 +117,47 @@ const COLORS = {
   searchBackground: 'rgba(255, 255, 255, 0.9)',
 };
 
-const MemoryFeed: React.FC = () => {
+export const MemoryFeed: React.FC = () => {
   const [currentDate, setCurrentDate] = React.useState(new Date());
   const [viewMode, setViewMode] = React.useState<'day' | 'month'>('day');
-  const [memories, setMemories] = React.useState<Memory[]>(generateSampleMemories());
+  const [memories, setMemories] = React.useState<Memory[]>([]);
   const [isSearchExpanded, setIsSearchExpanded] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState('');
-  const [isLoading, setIsLoading] = React.useState(false);
+  const [isLoading, setIsLoading] = React.useState(true);
   const searchBarWidth = React.useRef(new Animated.Value(0)).current;
   const scrollViewRef = React.useRef<ScrollView>(null);
   const { height: screenHeight } = Dimensions.get('window');
   const [isAddContentModalVisible, setIsAddContentModalVisible] = React.useState(false);
 
+  useEffect(() => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const memoriesRef = collection(db, 'memories');
+    const q = query(
+      memoriesRef,
+      where('userId', '==', user.uid),
+      where('type', '==', 'link'),
+      orderBy('date', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const memoryList: Memory[] = [];
+      snapshot.forEach((doc) => {
+        memoryList.push({ id: doc.id, ...doc.data() } as Memory);
+      });
+      setMemories(memoryList);
+      setIsLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   // Group memories by date and sort them
   const memoriesByDate = React.useMemo(() => {
     const grouped: { [key: string]: Memory[] } = {};
     memories.forEach(memory => {
-      const dateKey = memory.date.toDateString();
+      const dateKey = memory.date.toDate().toDateString();
       if (!grouped[dateKey]) {
         grouped[dateKey] = [];
       }
@@ -173,7 +198,7 @@ const MemoryFeed: React.FC = () => {
     // Simulate loading delay
     await new Promise(resolve => setTimeout(resolve, 1000));
     
-    const oldestDate = new Date(Math.min(...memories.map(m => m.date.getTime())));
+    const oldestDate = new Date(Math.min(...memories.map(m => m.date.toDate().getTime())));
     const newMemories: Memory[] = [];
     
     // Generate 10 more days of content
@@ -190,7 +215,7 @@ const MemoryFeed: React.FC = () => {
             uri: `https://picsum.photos/400/400?random=${date.getTime()}${j}`,
             text: `Memory from ${date.toLocaleDateString()}`
           },
-          date: new Date(date),
+          date: Timestamp.fromDate(new Date(date)),
           isFavorite: Math.random() > 0.7
         });
       }
@@ -249,6 +274,52 @@ const MemoryFeed: React.FC = () => {
       }, 100);
     }
   }, []);
+
+  const handleLinkPress = async (url: string) => {
+    try {
+      await Linking.openURL(url);
+    } catch (error) {
+      console.error('Error opening URL:', error);
+    }
+  };
+
+  const renderMemory = (memory: Memory) => {
+    switch (memory.type) {
+      case 'link':
+        return (
+          <TouchableOpacity
+            key={memory.id}
+            style={styles.memoryCard}
+            onPress={() => handleLinkPress(memory.content.url)}
+          >
+            <View style={styles.memoryHeader}>
+              <Ionicons name="link" size={24} color={COLORS.accent} />
+              <Text style={styles.date}>
+                {memory.date instanceof Timestamp ? memory.date.toDate().toLocaleDateString() : new Date(memory.date).toLocaleDateString()}
+              </Text>
+            </View>
+            <Text style={styles.url} numberOfLines={1}>
+              {memory.content.url}
+            </Text>
+            {memory.content.caption && (
+              <Text style={styles.caption} numberOfLines={2}>
+                {memory.content.caption}
+              </Text>
+            )}
+          </TouchableOpacity>
+        );
+      default:
+        return null;
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -316,32 +387,31 @@ const MemoryFeed: React.FC = () => {
           onScroll={handleScroll}
           scrollEventThrottle={16}
         >
-          {Object.entries(memoriesByDate).map(([dateKey, dayMemories]) => (
-            <View key={dateKey} style={styles.dayContainer}>
-              <View style={styles.dateHeader}>
-                <Text style={styles.dateHeaderText}>
-                  {formatDateHeader(new Date(dateKey))}
-                </Text>
-              </View>
-              <View style={styles.grid}>
-                {dayMemories.map((memory) => (
-                  <MemoryCard
-                    key={memory.id}
-                    type={memory.type}
-                    content={memory.content}
-                    isFavorite={memory.isFavorite}
-                    onPress={() => handleMemoryPress(memory)}
-                    onFavorite={() => handleFavorite(memory.id)}
-                  />
-                ))}
-              </View>
-            </View>
-          ))}
-          
-          {isLoading && (
+          {isLoading ? (
             <View style={styles.loadingContainer}>
               <ActivityIndicator size="large" color={COLORS.accent} />
             </View>
+          ) : memories.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No links saved yet. Add some links to see them here!</Text>
+            </View>
+          ) : (
+            Object.entries(memoriesByDate).map(([dateKey, dayMemories]) => (
+              <View key={dateKey} style={styles.dayContainer}>
+                <View style={styles.dateHeader}>
+                  <Text style={styles.dateHeaderText}>
+                    {formatDateHeader(new Date(dateKey))}
+                  </Text>
+                </View>
+                <View style={styles.grid}>
+                  {dayMemories.map((memory, index) => (
+                    <View key={memory.id} style={styles.gridItem}>
+                      {renderMemory(memory)}
+                    </View>
+                  ))}
+                </View>
+              </View>
+            ))
           )}
         </ScrollView>
 
@@ -420,24 +490,25 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   dayContainer: {
-    minHeight: Dimensions.get('window').height,
-    paddingBottom: 20,
+    marginBottom: 16,
   },
   dateHeader: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 8,
     backgroundColor: COLORS.background,
   },
   dateHeaderText: {
-    fontSize: 17,
-    fontFamily: 'System',
+    fontSize: 16,
     fontWeight: '600',
     color: COLORS.secondaryText,
   },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    padding: 8,
+  },
+  gridItem: {
+    width: '50%',
     padding: 8,
   },
   loadingContainer: {
@@ -462,6 +533,47 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 5,
+  },
+  memoryCard: {
+    backgroundColor: COLORS.card,
+    padding: 12,
+    borderRadius: 12,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    height: 160, // Fixed height for grid items
+  },
+  memoryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  url: {
+    fontSize: 14,
+    color: COLORS.accent,
+    marginBottom: 4,
+  },
+  caption: {
+    fontSize: 12,
+    color: COLORS.secondaryText,
+  },
+  date: {
+    fontSize: 10,
+    color: COLORS.secondaryText,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  emptyText: {
+    textAlign: 'center',
+    fontSize: 16,
+    color: COLORS.secondaryText,
   },
 });
 
