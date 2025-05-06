@@ -117,8 +117,17 @@ const MemoryCard: React.FC<MemoryCardProps> = ({
         return (
           <View style={styles.linkContainer}>
             <Ionicons name="link-outline" size={32} color={COLORS.accent} />
-            <Text style={styles.linkTitle}>{content.title}</Text>
-            <Text style={styles.linkDescription}>{content.description}</Text>
+            <Text style={styles.linkTitle} numberOfLines={1}>
+              {content.title || 'Link'}
+            </Text>
+            <Text style={styles.linkUrl} numberOfLines={1}>
+              {content.url}
+            </Text>
+            {content.description && (
+              <Text style={styles.linkDescription} numberOfLines={2}>
+                {content.description}
+              </Text>
+            )}
           </View>
         );
       default:
@@ -321,25 +330,28 @@ const styles = StyleSheet.create({
   },
   linkContainer: {
     flex: 1,
+    padding: 16,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: COLORS.cardBackground,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: COLORS.cardBorder,
-    borderRadius: 16,
   },
   linkTitle: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '600',
     color: COLORS.text,
     marginTop: 8,
     textAlign: 'center',
   },
-  linkDescription: {
-    fontSize: 13,
-    color: COLORS.secondaryText,
+  linkUrl: {
+    fontSize: 12,
+    color: COLORS.accent,
     marginTop: 4,
+    textAlign: 'center',
+  },
+  linkDescription: {
+    fontSize: 14,
+    color: COLORS.secondaryText,
+    marginTop: 8,
     textAlign: 'center',
   },
 });

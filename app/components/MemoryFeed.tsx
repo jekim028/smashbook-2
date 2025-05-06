@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
-import React from 'react';
-import { ActivityIndicator, Animated, Dimensions, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { collection, onSnapshot, orderBy, query, Timestamp, where } from 'firebase/firestore';
+import React, { useEffect } from 'react';
+import { ActivityIndicator, Animated, Dimensions, Linking, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { auth, db } from '../../constants/Firebase';
 import AddContentModal from './AddContentModal';
 import MemoryCard from './MemoryCard';
 
@@ -9,7 +11,7 @@ interface Memory {
   id: string;
   type: 'photo' | 'note' | 'voice' | 'text' | 'reel' | 'tiktok' | 'restaurant' | 'location' | 'link';
   content: any;
-  date: Date;
+  date: Timestamp;
   isFavorite: boolean;
 }
 
@@ -95,7 +97,7 @@ const generateSampleMemories = (): Memory[] => {
         id: `${i}-${j}`,
         type,
         content,
-        date: new Date(date),
+        date: Timestamp.fromDate(new Date(date)),
         isFavorite: Math.random() > 0.7
       });
     }
@@ -116,17 +118,17 @@ const COLORS = {
   searchBackground: 'rgba(255, 255, 255, 0.9)',
 };
 
-const MemoryFeed: React.FC = () => {
+export const MemoryFeed: React.FC = () => {
   // Initialize currentDate with the most recent date from memories
   const [currentDate, setCurrentDate] = React.useState(() => {
     const today = new Date();
     return today;
   });
   const [viewMode, setViewMode] = React.useState<'day' | 'month'>('day');
-  const [memories, setMemories] = React.useState<Memory[]>(generateSampleMemories());
+  const [memories, setMemories] = React.useState<Memory[]>([]);
   const [isSearchExpanded, setIsSearchExpanded] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState('');
-  const [isLoading, setIsLoading] = React.useState(false);
+  const [isLoading, setIsLoading] = React.useState(true);
   const searchBarWidth = React.useRef(new Animated.Value(0)).current;
   const scrollViewRef = React.useRef<ScrollView>(null);
   const { height: screenHeight } = Dimensions.get('window');
@@ -138,10 +140,35 @@ const MemoryFeed: React.FC = () => {
   // Store Y offsets for each section
   const sectionOffsets = React.useRef<{ [key: string]: number }>({});
 
+  // Fetch memories from Firebase
+  useEffect(() => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const memoriesRef = collection(db, 'memories');
+    const q = query(
+      memoriesRef,
+      where('userId', '==', user.uid),
+      where('type', '==', 'link'),
+      orderBy('date', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const memoryList: Memory[] = [];
+      snapshot.forEach((doc) => {
+        memoryList.push({ id: doc.id, ...doc.data() } as Memory);
+      });
+      setMemories(memoryList);
+      setIsLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   // Update currentDate when memories change to match the most recent content
   React.useEffect(() => {
     if (memories.length > 0) {
-      const mostRecentDate = new Date(Math.max(...memories.map(m => m.date.getTime())));
+      const mostRecentDate = new Date(Math.max(...memories.map(m => m.date.toDate().getTime())));
       setCurrentDate(mostRecentDate);
     }
   }, [memories]);
@@ -150,7 +177,7 @@ const MemoryFeed: React.FC = () => {
   const memoriesByDate = React.useMemo(() => {
     const grouped: { [key: string]: Memory[] } = {};
     memories.forEach(memory => {
-      const dateKey = memory.date.toDateString();
+      const dateKey = memory.date.toDate().toDateString();
       if (!grouped[dateKey]) {
         grouped[dateKey] = [];
       }
@@ -198,7 +225,7 @@ const MemoryFeed: React.FC = () => {
     // Simulate loading delay
     await new Promise(resolve => setTimeout(resolve, 1000));
     
-    const oldestDate = new Date(Math.min(...memories.map(m => m.date.getTime())));
+    const oldestDate = new Date(Math.min(...memories.map(m => m.date.toDate().getTime())));
     const newMemories: Memory[] = [];
     
     // Generate 10 more days of content
@@ -215,7 +242,7 @@ const MemoryFeed: React.FC = () => {
             uri: `https://picsum.photos/400/400?random=${date.getTime()}${j}`,
             text: `Memory from ${date.toLocaleDateString()}`
           },
-          date: new Date(date),
+          date: Timestamp.fromDate(new Date(date)),
           isFavorite: Math.random() > 0.7
         });
       }
@@ -237,7 +264,9 @@ const MemoryFeed: React.FC = () => {
   };
 
   const handleMemoryPress = (memory: Memory) => {
-    console.log('Memory pressed:', memory);
+    if (memory.type === 'link') {
+      handleLinkPress(memory.content.url);
+    }
   };
 
   const handleFavorite = (memoryId: string) => {
@@ -268,6 +297,22 @@ const MemoryFeed: React.FC = () => {
     }
   }, [memoriesByDate]);
 
+  const handleLinkPress = async (url: string) => {
+    try {
+      await Linking.openURL(url);
+    } catch (error) {
+      console.error('Error opening URL:', error);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
@@ -275,7 +320,11 @@ const MemoryFeed: React.FC = () => {
         <BlurView intensity={80} tint="light" style={styles.header}>
           <View style={styles.headerLeft}>
             <Text style={styles.dateText}>
-              {formatDateHeader(currentDate)}
+              {currentDate.toLocaleDateString('en-US', {
+                month: 'long',
+                day: 'numeric',
+                year: 'numeric'
+              })}
             </Text>
           </View>
           <View style={styles.headerRight}>
@@ -323,24 +372,24 @@ const MemoryFeed: React.FC = () => {
         </Animated.View>
 
         {/* Memory Grid */}
-        <View style={styles.scrollContainer}>
-          <ScrollView 
-            ref={scrollViewRef}
-            style={styles.gridContainer}
-            showsVerticalScrollIndicator={false}
-            onScroll={handleScroll}
-            scrollEventThrottle={16}
-          >
-            {Object.entries(memoriesByDate).map(([dateKey, dayMemories], index, array) => (
-              <View 
-                key={dateKey}
-                ref={ref => { sectionRefs.current[dateKey] = ref; }}
-                onLayout={e => { sectionOffsets.current[dateKey] = e.nativeEvent.layout.y; }}
-                style={[
-                  styles.dayContainer,
-                  index < array.length - 1 && styles.dayContainerWithBorder
-                ]}
-              >
+        <ScrollView 
+          ref={scrollViewRef}
+          style={styles.gridContainer}
+          showsVerticalScrollIndicator={false}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+        >
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={COLORS.accent} />
+            </View>
+          ) : memories.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No links saved yet. Add some links to see them here!</Text>
+            </View>
+          ) : (
+            Object.entries(memoriesByDate).map(([dateKey, dayMemories]) => (
+              <View key={dateKey} style={styles.dayContainer}>
                 <View style={styles.dateHeader}>
                   <Text style={styles.dateHeaderText}>
                     {formatDateHeader(new Date(dateKey))}
@@ -359,15 +408,9 @@ const MemoryFeed: React.FC = () => {
                   ))}
                 </View>
               </View>
-            ))}
-            
-            {isLoading && (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={COLORS.accent} />
-              </View>
-            )}
-          </ScrollView>
-        </View>
+            ))
+          )}
+        </ScrollView>
 
         {/* Add Content Button */}
         <TouchableOpacity 
@@ -448,8 +491,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   dayContainer: {
-    minHeight: Dimensions.get('window').height,
-    paddingBottom: 20,
+    marginBottom: 16,
   },
   dayContainerWithBorder: {
     borderBottomWidth: 1,
@@ -457,19 +499,21 @@ const styles = StyleSheet.create({
   },
   dateHeader: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 8,
     backgroundColor: COLORS.background,
   },
   dateHeaderText: {
-    fontSize: 17,
-    fontFamily: 'System',
+    fontSize: 16,
     fontWeight: '600',
     color: COLORS.secondaryText,
   },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    justifyContent: 'space-between',
+    padding: 8,
+  },
+  gridItem: {
+    width: '50%',
     padding: 8,
   },
   loadingContainer: {
@@ -494,6 +538,47 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 5,
+  },
+  memoryCard: {
+    backgroundColor: COLORS.card,
+    padding: 12,
+    borderRadius: 12,
+    shadowColor: COLORS.shadow,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+    height: 160,
+  },
+  memoryHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  url: {
+    fontSize: 14,
+    color: COLORS.accent,
+    marginBottom: 4,
+  },
+  caption: {
+    fontSize: 12,
+    color: COLORS.secondaryText,
+  },
+  date: {
+    fontSize: 10,
+    color: COLORS.secondaryText,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  emptyText: {
+    textAlign: 'center',
+    fontSize: 16,
+    color: COLORS.secondaryText,
   },
 });
 
