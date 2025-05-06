@@ -1,13 +1,9 @@
 import React from 'react';
-import { SafeAreaView, StyleSheet } from 'react-native';
+import { StyleSheet } from 'react-native';
 import MemoryFeed from './components/MemoryFeed';
 
-export default function App() {
-  return (
-    <SafeAreaView style={styles.container}>
-      <MemoryFeed />
-    </SafeAreaView>
-  );
+export default function Index() {
+  return <MemoryFeed />;
 }
 
 const styles = StyleSheet.create({

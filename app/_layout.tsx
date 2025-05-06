@@ -29,14 +29,12 @@ export default function RootLayout() {
   useEffect(() => {
     if (isAuthenticated === null) return;
 
-    const inAuthGroup = segments[0] === '(tabs)';
-
-    if (!isAuthenticated && inAuthGroup) {
+    if (!isAuthenticated) {
       router.replace('/login');
-    } else if (isAuthenticated && !inAuthGroup) {
-      router.replace('/(tabs)');
+    } else {
+      router.replace('/');
     }
-  }, [isAuthenticated, segments]);
+  }, [isAuthenticated]);
 
   if (!loaded) {
     // Async font loading only occurs in development.
@@ -45,9 +43,9 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="login" options={{ headerShown: false }} />
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="login" />
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="auto" />
