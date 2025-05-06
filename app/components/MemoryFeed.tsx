@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import React from 'react';
 import { ActivityIndicator, Animated, Dimensions, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import AddContentModal from './AddContentModal';
 import MemoryCard from './MemoryCard';
 
 interface Memory {
@@ -125,6 +126,7 @@ const MemoryFeed: React.FC = () => {
   const searchBarWidth = React.useRef(new Animated.Value(0)).current;
   const scrollViewRef = React.useRef<ScrollView>(null);
   const { height: screenHeight } = Dimensions.get('window');
+  const [isAddContentModalVisible, setIsAddContentModalVisible] = React.useState(false);
 
   // Group memories by date and sort them
   const memoriesByDate = React.useMemo(() => {
@@ -343,13 +345,18 @@ const MemoryFeed: React.FC = () => {
           )}
         </ScrollView>
 
-        {/* Scroll to Today Button */}
+        {/* Add Content Button */}
         <TouchableOpacity 
-          style={styles.scrollToTodayButton}
-          onPress={scrollToToday}
+          style={styles.addContentButton}
+          onPress={() => setIsAddContentModalVisible(true)}
         >
-          <Ionicons name="today-outline" size={24} color={COLORS.card} />
+          <Ionicons name="add" size={24} color={COLORS.card} />
         </TouchableOpacity>
+
+        <AddContentModal
+          visible={isAddContentModalVisible}
+          onClose={() => setIsAddContentModalVisible(false)}
+        />
       </View>
     </SafeAreaView>
   );
@@ -437,7 +444,7 @@ const styles = StyleSheet.create({
     padding: 20,
     alignItems: 'center',
   },
-  scrollToTodayButton: {
+  addContentButton: {
     position: 'absolute',
     right: 16,
     bottom: 16,
