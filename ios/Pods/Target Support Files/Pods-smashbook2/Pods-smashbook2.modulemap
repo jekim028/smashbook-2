@@ -1,0 +1,6 @@
+module Pods_smashbook2 {
+  umbrella header "Pods-smashbook2-umbrella.h"
+
+  export *
+  module * { export * }
+}
