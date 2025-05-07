@@ -127,24 +127,33 @@ const MemoryFeed: React.FC = () => {
   const { height: screenHeight } = Dimensions.get('window');
 
   // Group memories by date and sort them
-  const memoriesByDate = React.useMemo(() => {
+  const filteredMemoriesByDate = React.useMemo(() => {
+    const lowerQuery = searchQuery.toLowerCase().trim();
+  
+    const filtered = memories.filter((memory) => {
+      // Convert all searchable content into a single string
+      const searchableContent = JSON.stringify(memory.content).toLowerCase();
+      return searchableContent.includes(lowerQuery);
+    });
+  
     const grouped: { [key: string]: Memory[] } = {};
-    memories.forEach(memory => {
+    filtered.forEach(memory => {
       const dateKey = memory.date.toDateString();
       if (!grouped[dateKey]) {
         grouped[dateKey] = [];
       }
       grouped[dateKey].push(memory);
     });
-    
-    // Sort the dates in reverse chronological order (newest first)
+  
     return Object.fromEntries(
-      Object.entries(grouped).sort(([dateA], [dateB]) => 
-        new Date(dateB).getTime() - new Date(dateA).getTime()
+      Object.entries(grouped).sort(([a], [b]) => 
+        new Date(b).getTime() - new Date(a).getTime()
       )
     );
-  }, [memories]);
-
+  }, [memories, searchQuery]);
+    
+    // Sort the dates in reverse chronological order (newest first)
+    
   const toggleSearch = () => {
     const toValue = isSearchExpanded ? 0 : 1;
     Animated.spring(searchBarWidth, {
@@ -314,8 +323,14 @@ const MemoryFeed: React.FC = () => {
           onScroll={handleScroll}
           scrollEventThrottle={16}
         >
-          {Object.entries(memoriesByDate).map(([dateKey, dayMemories]) => (
-            <View key={dateKey} style={styles.dayContainer}>
+          {Object.entries(filteredMemoriesByDate).map(([dateKey, dayMemories]) => (
+            <View
+            key={dateKey}
+            style={[
+              styles.dayContainer,
+              searchQuery === '' ? { minHeight: screenHeight } : null
+            ]}
+          >          
               <View style={styles.dateHeader}>
                 <Text style={styles.dateHeaderText}>
                   {formatDateHeader(new Date(dateKey))}
@@ -413,7 +428,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   dayContainer: {
-    minHeight: Dimensions.get('window').height,
     paddingBottom: 20,
   },
   dateHeader: {
