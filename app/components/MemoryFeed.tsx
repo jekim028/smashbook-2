@@ -154,13 +154,22 @@ const MemoryFeed: React.FC = () => {
       }
       grouped[dateKey].push(memory);
     });
-    // Sort the dates in reverse chronological order (newest first)
+    // Sort the dates in chronological order (oldest first)
     return Object.fromEntries(
       Object.entries(grouped).sort(([dateA], [dateB]) =>
-        new Date(dateB).getTime() - new Date(dateA).getTime()
+        new Date(dateA).getTime() - new Date(dateB).getTime()
       )
     );
   }, [memories]);
+
+  // On mount, scroll to the bottom (show newest content)
+  React.useEffect(() => {
+    if (scrollViewRef.current) {
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: false });
+      }, 100);
+    }
+  }, [memoriesByDate]);
 
   const toggleSearch = () => {
     const toValue = isSearchExpanded ? 0 : 1;
@@ -251,19 +260,6 @@ const MemoryFeed: React.FC = () => {
       day: 'numeric',
     });
   };
-
-  // Scroll to today's content when component mounts
-  React.useEffect(() => {
-    if (scrollViewRef.current && memories.length > 0) {
-      // Find the offset for the most recent date (today)
-      const dateKeys = Object.keys(memoriesByDate);
-      const todayKey = dateKeys[dateKeys.length - 1];
-      const offset = sectionOffsets.current[todayKey] || 0;
-      setTimeout(() => {
-        scrollViewRef.current?.scrollTo({ y: offset, animated: false });
-      }, 100);
-    }
-  }, [memoriesByDate]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
