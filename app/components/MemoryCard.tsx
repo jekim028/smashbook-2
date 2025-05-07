@@ -1,9 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import { Dimensions, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { WebView } from 'react-native-webview';
 
 interface MemoryCardProps {
-  type: 'photo' | 'note' | 'voice' | 'text' | 'reel' | 'tiktok' | 'restaurant' | 'location' | 'link';
+  type: 'photo' | 'note' | 'voice' | 'text' | 'instagram' | 'tiktok' | 'restaurant' | 'location' | 'link';
   content: any;
   isFavorite: boolean;
   onPress: () => void;
@@ -11,10 +12,9 @@ interface MemoryCardProps {
 }
 
 const { width: screenWidth } = Dimensions.get('window');
-const CARD_WIDTH = (screenWidth - 48) / 2; // 2 columns with proper padding
-const CARD_HEIGHT = CARD_WIDTH * 1.5; // Fixed height ratio for all cards
+const CARD_WIDTH = (screenWidth - 48) / 2;
+const CARD_HEIGHT = CARD_WIDTH * 1.5;
 
-// Pastel color palette
 const COLORS = {
   background: '#F8F8F8',
   card: '#FFFFFF',
@@ -35,47 +35,80 @@ const MemoryCard: React.FC<MemoryCardProps> = ({
 }) => {
   const getIcon = () => {
     switch (type) {
-      case 'photo':
-        return 'image-outline';
-      case 'note':
-        return 'document-text-outline';
-      case 'voice':
-        return 'mic-outline';
-      case 'text':
-        return 'chatbubble-outline';
-      case 'reel':
-        return 'videocam-outline';
-      case 'tiktok':
-        return 'logo-tiktok';
-      case 'restaurant':
-        return 'restaurant-outline';
-      case 'location':
-        return 'location-outline';
-      case 'link':
-        return 'link-outline';
-      default:
-        return 'document-outline';
+      case 'photo': return 'image-outline';
+      case 'note': return 'document-text-outline';
+      case 'voice': return 'mic-outline';
+      case 'text': return 'chatbubble-outline';
+      case 'instagram': return 'logo-instagram';
+      case 'tiktok': return 'logo-tiktok';
+      case 'restaurant': return 'restaurant-outline';
+      case 'location': return 'location-outline';
+      case 'link': return 'link-outline';
+      default: return 'document-outline';
     }
   };
 
+  if (type === 'instagram' && content.uri.includes('/reel/')) {
+    return (
+      <View style={[styles.container]}>
+        <WebView
+          source={{ uri: content.uri }}
+          style={styles.webview}
+          javaScriptEnabled
+          domStorageEnabled
+          allowsInlineMediaPlayback
+          mediaPlaybackRequiresUserAction={true} // disables autoplay
+          startInLoadingState
+        />
+        <TouchableOpacity
+          style={[styles.favoriteButton, isFavorite && styles.favoriteButtonActive]}
+          onPress={onFavorite}
+        >
+          <Ionicons
+            name={isFavorite ? 'heart' : 'heart-outline'}
+            size={20}
+            color={isFavorite ? COLORS.favorite : COLORS.secondaryText}
+          />
+        </TouchableOpacity>
+      </View>
+    );
+  }
+  
+  if (type === 'instagram' && content.uri.includes('/p/')) {
+    return (
+      <TouchableOpacity
+        style={[styles.container]}
+        onPress={onPress}
+        activeOpacity={0.7}
+      >
+        <View style={styles.instagramFallback}>
+          <Ionicons name="image-outline" size={32} color={COLORS.accent} />
+          <Text style={styles.instagramText}>Instagram Photo</Text>
+        </View>
+        <TouchableOpacity
+          style={[styles.favoriteButton, isFavorite && styles.favoriteButtonActive]}
+          onPress={onFavorite}
+        >
+          <Ionicons
+            name={isFavorite ? 'heart' : 'heart-outline'}
+            size={20}
+            color={isFavorite ? COLORS.favorite : COLORS.secondaryText}
+          />
+        </TouchableOpacity>
+      </TouchableOpacity>
+    );
+  }
+  
   const renderContent = () => {
     switch (type) {
       case 'photo':
-      case 'reel':
       case 'tiktok':
         return (
           <>
-            <Image 
-              source={{ uri: content.uri }} 
-              style={styles.image}
-              resizeMode="cover"
-            />
+            <Image source={{ uri: content.uri }} style={styles.image} resizeMode="cover" />
             <View style={styles.mediaOverlay}>
-              {type === 'reel' && <Ionicons name="logo-instagram" size={20} color={COLORS.card} />}
               {type === 'tiktok' && <Ionicons name="logo-tiktok" size={20} color={COLORS.card} />}
-              {content.duration && (
-                <Text style={styles.duration}>{content.duration}</Text>
-              )}
+              {content.duration && <Text style={styles.duration}>{content.duration}</Text>}
             </View>
           </>
         );
@@ -130,21 +163,20 @@ const MemoryCard: React.FC<MemoryCardProps> = ({
   };
 
   return (
-    <TouchableOpacity 
-      style={[styles.container]} 
+    <TouchableOpacity
+      style={[styles.container]}
       onPress={onPress}
       activeOpacity={0.7}
     >
       {renderContent()}
-      
-      <TouchableOpacity 
+      <TouchableOpacity
         style={[styles.favoriteButton, isFavorite && styles.favoriteButtonActive]}
         onPress={onFavorite}
       >
-        <Ionicons 
-          name={isFavorite ? 'heart' : 'heart-outline'} 
-          size={20} 
-          color={isFavorite ? COLORS.favorite : COLORS.secondaryText} 
+        <Ionicons
+          name={isFavorite ? 'heart' : 'heart-outline'}
+          size={20}
+          color={isFavorite ? COLORS.favorite : COLORS.secondaryText}
         />
       </TouchableOpacity>
     </TouchableOpacity>
@@ -152,6 +184,23 @@ const MemoryCard: React.FC<MemoryCardProps> = ({
 };
 
 const styles = StyleSheet.create({
+  instagramFallback: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+    backgroundColor: COLORS.background,
+  },
+  instagramText: {
+    marginTop: 8,
+    fontSize: 15,
+    color: COLORS.secondaryText,
+  },
+  webview: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'transparent',
+  },
   container: {
     width: CARD_WIDTH,
     height: CARD_HEIGHT,
@@ -160,19 +209,10 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.card,
     overflow: 'hidden',
     shadowColor: COLORS.shadow,
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 1,
     shadowRadius: 12,
     elevation: 4,
-  },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: COLORS.background,
   },
   image: {
     width: '100%',
@@ -187,10 +227,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 12,
     shadowColor: COLORS.shadow,
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.5,
     shadowRadius: 8,
     elevation: 2,
@@ -212,10 +249,7 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: COLORS.card,
     shadowColor: COLORS.shadow,
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.5,
     shadowRadius: 4,
     elevation: 2,
@@ -325,4 +359,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default MemoryCard; 
+export default MemoryCard;

@@ -3,14 +3,16 @@ import { BlurView } from 'expo-blur';
 import React from 'react';
 import { ActivityIndicator, Animated, Dimensions, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import MemoryCard from './MemoryCard';
+import { WebView } from 'react-native-webview';
 
 interface Memory {
   id: string;
-  type: 'photo' | 'note' | 'voice' | 'text' | 'reel' | 'tiktok' | 'restaurant' | 'location' | 'link';
+  type: 'photo' | 'note' | 'voice' | 'text' | 'reel' | 'tiktok' | 'restaurant' | 'location' | 'link' | 'instagram';
   content: any;
   date: Date;
   isFavorite: boolean;
 }
+
 
 // Generate sample data for the last 30 days
 const generateSampleMemories = (): Memory[] => {
@@ -48,19 +50,25 @@ const generateSampleMemories = (): Memory[] => {
             title: 'Voice Memo'
           };
           break;
-        case 'text':
-          content = {
-            text: 'Hey! How are you?',
-            sender: 'John Doe'
-          };
-          break;
-        case 'reel':
-          content = {
-            uri: `https://picsum.photos/400/400?random=${i}${j}`,
-            duration: '0:30',
-            title: 'Instagram Reel'
-          };
-          break;
+          case 'text':
+            content = {
+              text: 'Hey! How are you?',
+              sender: 'John Doe'
+            };
+            break;
+            case 'instagram':
+              // Alternate between a post and a reel
+              const isReel = Math.random() > 0.5;
+              content = {
+                uri: isReel 
+                  ? 'https://www.instagram.com/reel/C5xRgKSPzZI/' 
+                  : 'https://www.instagram.com/p/C5tZy9RM1vQ/',
+                title: isReel ? 'Instagram Reel' : 'Instagram Photo',
+                type: isReel ? 'video' : 'photo'
+              };
+              break;
+            
+          
         case 'tiktok':
           content = {
             uri: `https://picsum.photos/400/400?random=${i}${j}`,
@@ -99,8 +107,21 @@ const generateSampleMemories = (): Memory[] => {
       });
     }
   }
-  
-  return memories;
+  // Add hardcoded Instagram reel memory
+memories.unshift({
+  id: 'reel-custom',
+  type: 'instagram',
+  content: {
+    uri: 'https://www.instagram.com/reel/DItkhvdIOQh/?igsh=NTc4MTIwNjQ2YQ%3D%3D',
+    title: 'My Instagram Reel',
+    type: 'video',
+  },
+  date: new Date(),
+  isFavorite: true,
+});
+
+return memories;
+
 };
 
 // Pastel color palette
@@ -388,6 +409,11 @@ const MemoryFeed: React.FC = () => {
 };
 
 const styles = StyleSheet.create({
+  webview: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: 'transparent',
+  },
   safeArea: {
     flex: 1,
     backgroundColor: COLORS.background,
