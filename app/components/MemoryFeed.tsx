@@ -113,6 +113,8 @@ const COLORS = {
   shadow: 'rgba(0, 0, 0, 0.08)',
   header: 'rgba(255, 255, 255, 0.8)',
   searchBackground: 'rgba(255, 255, 255, 0.9)',
+  favorite: '#FF2D55',
+  favoriteBackground: 'rgba(255, 45, 85, 0.1)',
 };
 
 const MemoryFeed: React.FC = () => {
@@ -125,16 +127,28 @@ const MemoryFeed: React.FC = () => {
   const searchBarWidth = React.useRef(new Animated.Value(0)).current;
   const scrollViewRef = React.useRef<ScrollView>(null);
   const { height: screenHeight } = Dimensions.get('window');
+  const [showFavoritesOnly, setShowFavoritesOnly] = React.useState(false);
+
 
   // Group memories by date and sort them
   const filteredMemoriesByDate = React.useMemo(() => {
     const lowerQuery = searchQuery.toLowerCase().trim();
   
-    const filtered = memories.filter((memory) => {
-      // Convert all searchable content into a single string
-      const searchableContent = JSON.stringify(memory.content).toLowerCase();
-      return searchableContent.includes(lowerQuery);
-    });
+    let filtered = memories;
+  
+    if (showFavoritesOnly) {
+      filtered = filtered.filter(m => m.isFavorite);
+    }
+  
+    if (searchQuery !== '') {
+      filtered = filtered.filter((memory) => {
+        const searchableContent = JSON.stringify(memory.content).toLowerCase();
+        return searchableContent.includes(lowerQuery);
+      });
+    }
+  
+    // Sort by date (newest first)
+    filtered.sort((a, b) => b.date.getTime() - a.date.getTime());
   
     const grouped: { [key: string]: Memory[] } = {};
     filtered.forEach(memory => {
@@ -145,12 +159,8 @@ const MemoryFeed: React.FC = () => {
       grouped[dateKey].push(memory);
     });
   
-    return Object.fromEntries(
-      Object.entries(grouped).sort(([a], [b]) => 
-        new Date(b).getTime() - new Date(a).getTime()
-      )
-    );
-  }, [memories, searchQuery]);
+    return grouped;
+  }, [memories, searchQuery, showFavoritesOnly]);
     
     // Sort the dates in reverse chronological order (newest first)
     
@@ -275,9 +285,16 @@ const MemoryFeed: React.FC = () => {
             <TouchableOpacity style={styles.headerButton} onPress={toggleSearch}>
               <Ionicons name="search-outline" size={24} color={COLORS.text} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.headerButton}>
-              <Ionicons name="heart-outline" size={24} color={COLORS.text} />
-            </TouchableOpacity>
+            <TouchableOpacity 
+  style={styles.headerButton}
+  onPress={() => setShowFavoritesOnly(prev => !prev)}
+>
+  <Ionicons 
+    name={showFavoritesOnly ? 'heart' : 'heart-outline'} 
+    size={24} 
+    color={showFavoritesOnly ? COLORS.favorite : COLORS.text} 
+  />
+</TouchableOpacity>
             <TouchableOpacity style={styles.headerButton}>
               <Ionicons name="share-outline" size={24} color={COLORS.text} />
             </TouchableOpacity>
@@ -328,9 +345,9 @@ const MemoryFeed: React.FC = () => {
             key={dateKey}
             style={[
               styles.dayContainer,
-              searchQuery === '' ? { minHeight: screenHeight } : null
+              searchQuery === '' && !showFavoritesOnly ? { minHeight: screenHeight } : null
             ]}
-          >          
+          >               
               <View style={styles.dateHeader}>
                 <Text style={styles.dateHeaderText}>
                   {formatDateHeader(new Date(dateKey))}
