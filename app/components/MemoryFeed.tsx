@@ -183,14 +183,22 @@ export const MemoryFeed: React.FC = () => {
       }
       grouped[dateKey].push(memory);
     });
-    
     // Sort the dates in chronological order (oldest first)
     return Object.fromEntries(
-      Object.entries(grouped).sort(([dateA], [dateB]) => 
+      Object.entries(grouped).sort(([dateA], [dateB]) =>
         new Date(dateA).getTime() - new Date(dateB).getTime()
       )
     );
   }, [memories]);
+
+  // On mount, scroll to the bottom (show newest content)
+  React.useEffect(() => {
+    if (scrollViewRef.current) {
+      setTimeout(() => {
+        scrollViewRef.current?.scrollToEnd({ animated: false });
+      }, 100);
+    }
+  }, [memoriesByDate]);
 
   const toggleSearch = () => {
     const toValue = isSearchExpanded ? 0 : 1;
