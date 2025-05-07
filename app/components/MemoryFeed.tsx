@@ -154,11 +154,10 @@ const MemoryFeed: React.FC = () => {
       }
       grouped[dateKey].push(memory);
     });
-    
-    // Sort the dates in chronological order (oldest first)
+    // Sort the dates in reverse chronological order (newest first)
     return Object.fromEntries(
-      Object.entries(grouped).sort(([dateA], [dateB]) => 
-        new Date(dateA).getTime() - new Date(dateB).getTime()
+      Object.entries(grouped).sort(([dateA], [dateB]) =>
+        new Date(dateB).getTime() - new Date(dateA).getTime()
       )
     );
   }, [memories]);
@@ -253,7 +252,7 @@ const MemoryFeed: React.FC = () => {
     });
   };
 
-  // Scroll to the top of the 'today' section (most recent date) when component mounts
+  // Scroll to today's content when component mounts
   React.useEffect(() => {
     if (scrollViewRef.current && memories.length > 0) {
       // Find the offset for the most recent date (today)
