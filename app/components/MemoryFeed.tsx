@@ -313,6 +313,44 @@ export const MemoryFeed: React.FC = () => {
     );
   }
 
+  const renderMemory = (memory: Memory) => {
+    switch (memory.type) {
+      case 'link':
+        return (
+          <TouchableOpacity
+            key={memory.id}
+            style={styles.memoryCard}
+            onPress={() => handleLinkPress(memory.content.url)}
+          >
+            <View style={styles.memoryHeader}>
+              <Ionicons name="link" size={24} color={COLORS.accent} />
+              <Text style={styles.date}>
+                {memory.date instanceof Timestamp ? memory.date.toDate().toLocaleDateString() : new Date(memory.date).toLocaleDateString()}
+              </Text>
+            </View>
+            <Text style={styles.url} numberOfLines={1}>
+              {memory.content.url}
+            </Text>
+            {memory.content.caption && (
+              <Text style={styles.caption} numberOfLines={2}>
+                {memory.content.caption}
+              </Text>
+            )}
+          </TouchableOpacity>
+        );
+      default:
+        return null;
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
@@ -493,10 +531,6 @@ const styles = StyleSheet.create({
   dayContainer: {
     marginBottom: 16,
   },
-  dayContainerWithBorder: {
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.shadow,
-  },
   dateHeader: {
     paddingHorizontal: 16,
     paddingVertical: 8,
@@ -510,10 +544,6 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    padding: 8,
-  },
-  gridItem: {
-    width: '50%',
     padding: 8,
   },
   loadingContainer: {
