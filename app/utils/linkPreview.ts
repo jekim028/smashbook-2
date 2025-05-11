@@ -1,3 +1,11 @@
+export interface LinkMetadata {
+  title: string;
+  description: string;
+  image: string;
+  url: string;
+  publisher?: string;
+}
+
 export async function getLinkMetadata(url: string): Promise<LinkMetadata> {
   console.log('🔗 Fetching metadata for URL:', url);
 
@@ -27,6 +35,7 @@ export async function getLinkMetadata(url: string): Promise<LinkMetadata> {
       description: metadata.description || '',
       image: metadata.image?.url || '',
       url: metadata.url || url,
+      publisher: metadata.publisher || '',
     };
   } catch (error) {
     console.error('❌ Error fetching link metadata:', error);

@@ -3,6 +3,7 @@ import { addDoc, collection } from 'firebase/firestore';
 import React, { useState } from 'react';
 import { ActivityIndicator, Alert, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { auth, db } from '../../constants/Firebase';
+import { getLinkMetadata } from '../utils/linkPreview';
 
 interface AddContentModalProps {
   visible: boolean;
@@ -31,13 +32,23 @@ const AddContentModal: React.FC<AddContentModalProps> = ({ visible, onClose }): 
     setError(null);
 
     try {
-      // Save link to Firestore
+      // Fetch link metadata
+      console.log('Fetching link metadata...');
+      const metadata = await getLinkMetadata(link);
+
+      // Save link to Firestore with metadata
       console.log('Saving link to Firestore');
+      console.log(metadata);
       const docRef = await addDoc(collection(db, 'memories'), {
         type: 'link',
         content: {
           url: link,
-          caption: description
+          caption: description,
+          title: metadata.title,
+          description: metadata.description,
+          previewImage: metadata.image,
+          publisher: metadata.publisher || '',
+          previewUrl: metadata.url
         },
         userId: user.uid,
         date: new Date(),
