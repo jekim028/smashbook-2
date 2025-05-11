@@ -52,7 +52,8 @@ const AddContentModal: React.FC<AddContentModalProps> = ({ visible, onClose }): 
         },
         userId: user.uid,
         date: new Date(),
-        isFavorite: false
+        isFavorite: false,
+        sharedWith: [],
       });
       console.log('Document written with ID:', docRef.id);
 
