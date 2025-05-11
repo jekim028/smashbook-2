@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
-import { Dimensions, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Dimensions, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { getLinkMetadata } from '../utils/linkPreview';
 
 interface MemoryCardProps {
   type: 'photo' | 'note' | 'voice' | 'text' | 'reel' | 'tiktok' | 'restaurant' | 'location' | 'link';
@@ -35,6 +36,29 @@ const MemoryCard: React.FC<MemoryCardProps> = ({
   onPress,
   onFavorite,
 }) => {
+  const [linkMetadata, setLinkMetadata] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    if (type === 'link' && content.url && !content.previewImage) {
+      fetchLinkMetadata();
+    }
+  }, [type, content.url]);
+
+  const fetchLinkMetadata = async () => {
+    if (!content.url) return;
+    
+    setIsLoading(true);
+    try {
+      const metadata = await getLinkMetadata(content.url);
+      setLinkMetadata(metadata);
+    } catch (error) {
+      console.error('Error fetching link metadata:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const getIcon = () => {
     switch (type) {
       case 'photo':
@@ -116,16 +140,28 @@ const MemoryCard: React.FC<MemoryCardProps> = ({
       case 'link':
         return (
           <View style={styles.linkContainer}>
-            <Ionicons name="link-outline" size={32} color={COLORS.accent} />
+            {isLoading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color={COLORS.accent} />
+              </View>
+            ) : (content.previewImage || linkMetadata?.image) ? (
+              <Image 
+                source={{ uri: content.previewImage || linkMetadata?.image }} 
+                style={styles.linkPreviewImage}
+                resizeMode="cover"
+              />
+            ) : (
+              <Ionicons name="link-outline" size={32} color={COLORS.accent} />
+            )}
             <Text style={styles.linkTitle} numberOfLines={1}>
-              {content.title || 'Link'}
+              {content.title || linkMetadata?.title || 'Link'}
             </Text>
             <Text style={styles.linkUrl} numberOfLines={1}>
               {content.url}
             </Text>
-            {content.description && (
+            {(content.description || linkMetadata?.description) && (
               <Text style={styles.linkDescription} numberOfLines={2}>
-                {content.description}
+                {content.description || linkMetadata?.description}
               </Text>
             )}
           </View>
@@ -335,6 +371,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: COLORS.cardBackground,
   },
+  linkPreviewImage: {
+    width: '100%',
+    height: 120,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
   linkTitle: {
     fontSize: 16,
     fontWeight: '600',
@@ -353,6 +395,15 @@ const styles = StyleSheet.create({
     color: COLORS.secondaryText,
     marginTop: 8,
     textAlign: 'center',
+  },
+  loadingContainer: {
+    width: '100%',
+    height: 120,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.cardBackground,
+    borderRadius: 8,
+    marginBottom: 8,
   },
 });
 
