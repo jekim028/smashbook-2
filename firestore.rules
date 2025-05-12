@@ -1,0 +1,35 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Helper function to check if user is accessing their own data
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    // Users collection rules
+    match /users/{userId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Friendships collection rules
+    match /friendships/{friendshipId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Memories collection rules
+    match /memories/{memoryId} {
+      allow read, write: if isAuthenticated();
+    }
+
+    // Allow access to all other collections for authenticated users
+    match /{document=**} {
+      allow read, write: if isAuthenticated();
+    }
+  }
+} 

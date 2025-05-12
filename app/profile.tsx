@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React from 'react';
-import { SafeAreaView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-import { auth } from '../constants/Firebase';
+import { collection, doc, getDoc, getDocs, query, setDoc, where, writeBatch } from 'firebase/firestore';
+import React, { useEffect, useState } from 'react';
+import { Alert, FlatList, SafeAreaView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { auth, db } from '../constants/Firebase';
 
 const COLORS = {
   background: '#F8F8F8',
@@ -13,9 +14,137 @@ const COLORS = {
   shadow: 'rgba(0, 0, 0, 0.08)',
 };
 
+interface User {
+  id: string;
+  email: string;
+  displayName?: string;
+}
+
+interface UserData {
+  email: string;
+  displayName?: string;
+}
+
 export default function Profile() {
   const router = useRouter();
   const user = auth.currentUser;
+  const [friends, setFriends] = useState<User[]>([]);
+  const [newFriendEmail, setNewFriendEmail] = useState('');
+  const [isAddingFriend, setIsAddingFriend] = useState(false);
+
+  useEffect(() => {
+    ensureUserDocument();
+    loadFriends();
+  }, []);
+
+  const ensureUserDocument = async () => {
+    if (!user) return;
+
+    try {
+      const userDoc = await getDoc(doc(db, 'users', user.uid));
+      
+      if (!userDoc.exists()) {
+        // Create user document if it doesn't exist
+        await setDoc(doc(db, 'users', user.uid), {
+          email: user.email,
+          displayName: user.displayName || '',
+          createdAt: new Date()
+        });
+      }
+    } catch (error) {
+      console.error('Error ensuring user document:', error);
+    }
+  };
+
+  const loadFriends = async () => {
+    if (!user) return;
+    
+    try {
+      const friendsRef = collection(db, 'friendships');
+      const q = query(friendsRef, where('userId', '==', user.uid));
+      const querySnapshot = await getDocs(q);
+      
+      const friendsList = await Promise.all(
+        querySnapshot.docs.map(async (docSnapshot) => {
+          const friendId = docSnapshot.data().friendId;
+          const friendDoc = await getDoc(doc(db, 'users', friendId));
+          const friendData = friendDoc.data() as UserData;
+          return { 
+            id: friendId,
+            email: friendData?.email || '',
+            displayName: friendData?.displayName
+          };
+        })
+      );
+      
+      setFriends(friendsList);
+    } catch (error) {
+      console.error('Error loading friends:', error);
+    }
+  };
+
+  const addFriendByEmail = async () => {
+    if (!user || !newFriendEmail.trim()) return;
+
+    try {
+      // First, find the user with the given email
+      const usersRef = collection(db, 'users');
+      const q = query(usersRef, where('email', '==', newFriendEmail.trim()));
+      const querySnapshot = await getDocs(q);
+
+      if (querySnapshot.empty) {
+        Alert.alert('Error', 'No user found with this email address');
+        return;
+      }
+
+      const friendDoc = querySnapshot.docs[0];
+      const friendId = friendDoc.id;
+
+      // Check if friendship already exists in either direction
+      const friendsRef = collection(db, 'friendships');
+      const existingFriendshipQuery = query(
+        friendsRef,
+        where('userId', 'in', [user.uid, friendId]),
+        where('friendId', 'in', [user.uid, friendId])
+      );
+      const existingFriendship = await getDocs(existingFriendshipQuery);
+
+      if (!existingFriendship.empty) {
+        Alert.alert('Error', 'You are already friends with this user');
+        return;
+      }
+
+      // Create bidirectional friendships
+      const batch = writeBatch(db);
+      
+      // Add friend for current user
+      const friendship1Ref = doc(collection(db, 'friendships'));
+      batch.set(friendship1Ref, {
+        userId: user.uid,
+        friendId: friendId,
+        createdAt: new Date()
+      });
+
+      // Add current user as friend for the other user
+      const friendship2Ref = doc(collection(db, 'friendships'));
+      batch.set(friendship2Ref, {
+        userId: friendId,
+        friendId: user.uid,
+        createdAt: new Date()
+      });
+
+      // Commit both operations
+      await batch.commit();
+      
+      await loadFriends();
+      setNewFriendEmail('');
+      setIsAddingFriend(false);
+      Alert.alert('Success', 'Friend added successfully!');
+    } catch (error) {
+      console.error('Error adding friend:', error);
+      Alert.alert('Error', 'Failed to add friend. Please try again.');
+    }
+  };
 
   const handleSignOut = async () => {
     try {
@@ -61,6 +190,51 @@ export default function Profile() {
             <Text style={styles.statNumber}>0</Text>
             <Text style={styles.statLabel}>Links</Text>
           </View>
+        </View>
+
+        <View style={styles.friendsSection}>
+          <View style={styles.friendsHeader}>
+            <Text style={styles.sectionTitle}>Friends</Text>
+            <TouchableOpacity 
+              style={styles.addFriendButton}
+              onPress={() => setIsAddingFriend(!isAddingFriend)}
+            >
+              <Ionicons name="person-add-outline" size={24} color={COLORS.accent} />
+            </TouchableOpacity>
+          </View>
+
+          {isAddingFriend && (
+            <View style={styles.addFriendContainer}>
+              <TextInput
+                style={styles.addFriendInput}
+                placeholder="Enter friend's email"
+                value={newFriendEmail}
+                onChangeText={setNewFriendEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+              <TouchableOpacity 
+                style={styles.addFriendSubmit}
+                onPress={addFriendByEmail}
+              >
+                <Text style={styles.addFriendSubmitText}>Add Friend</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          <FlatList
+            data={friends}
+            keyExtractor={(item) => item.id}
+            renderItem={({ item }) => (
+              <View style={styles.friendItem}>
+                <Ionicons name="person-circle-outline" size={40} color={COLORS.text} />
+                <Text style={styles.friendName}>{item.displayName || item.email}</Text>
+              </View>
+            )}
+            ListEmptyComponent={
+              <Text style={styles.emptyText}>No friends yet. Add some friends!</Text>
+            }
+          />
         </View>
 
         <View style={styles.settingsSection}>
@@ -170,5 +344,63 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.text,
     marginLeft: 12,
+  },
+  friendsSection: {
+    flex: 1,
+    padding: 20,
+  },
+  friendsHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  addFriendButton: {
+    padding: 8,
+  },
+  addFriendContainer: {
+    marginBottom: 16,
+  },
+  addFriendInput: {
+    backgroundColor: COLORS.card,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.shadow,
+    marginBottom: 8,
+  },
+  addFriendSubmit: {
+    backgroundColor: COLORS.accent,
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  addFriendSubmitText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  friendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    backgroundColor: COLORS.card,
+    borderRadius: 8,
+    marginBottom: 8,
+  },
+  friendName: {
+    fontSize: 16,
+    color: COLORS.text,
+    marginLeft: 12,
+  },
+  emptyText: {
+    textAlign: 'center',
+    color: COLORS.secondaryText,
+    marginTop: 20,
   },
 }); 
