@@ -1,8 +1,9 @@
 import { router } from 'expo-router';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
 import React, { useState } from 'react';
 import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import { auth } from '../constants/Firebase';
+import { auth, db } from '../constants/Firebase';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -33,6 +34,13 @@ export default function LoginScreen() {
         // Update user profile with name
         await updateProfile(user, {
           displayName: `${firstName} ${lastName}`
+        });
+
+        // Create user document in Firestore
+        await setDoc(doc(db, 'users', user.uid), {
+          email: user.email,
+          displayName: `${firstName} ${lastName}`,
+          createdAt: new Date()
         });
       }
       
