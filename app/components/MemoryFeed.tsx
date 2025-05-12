@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
+import { useRouter } from 'expo-router';
 import { collection, onSnapshot, orderBy, query, Timestamp, where } from 'firebase/firestore';
 import React, { useEffect } from 'react';
 import { ActivityIndicator, Animated, Dimensions, Linking, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -15,97 +16,6 @@ interface Memory {
   isFavorite: boolean;
 }
 
-// Generate sample data for the last 30 days
-const generateSampleMemories = (): Memory[] => {
-  const memories: Memory[] = [];
-  const today = new Date();
-  
-  for (let i = 0; i < 30; i++) {
-    const date = new Date(today);
-    date.setDate(today.getDate() - i);
-    
-    // Generate 2-4 memories per day with different types
-    const memoriesPerDay = Math.floor(Math.random() * 3) + 2;
-    
-    for (let j = 0; j < memoriesPerDay; j++) {
-      const memoryTypes: Memory['type'][] = ['photo', 'note', 'voice', 'text', 'reel', 'tiktok', 'restaurant', 'location', 'link'];
-      const type = memoryTypes[Math.floor(Math.random() * memoryTypes.length)];
-      
-      let content: any = {};
-      switch (type) {
-        case 'photo':
-          content = {
-            uri: `https://picsum.photos/400/400?random=${i}${j}`,
-            caption: 'A beautiful moment captured'
-          };
-          break;
-        case 'note':
-          content = {
-            text: 'Remember this day...',
-            title: 'Daily Note'
-          };
-          break;
-        case 'voice':
-          content = {
-            duration: '0:45',
-            title: 'Voice Memo'
-          };
-          break;
-        case 'text':
-          content = {
-            text: 'Hey! How are you?',
-            sender: 'John Doe'
-          };
-          break;
-        case 'reel':
-          content = {
-            uri: `https://picsum.photos/400/400?random=${i}${j}`,
-            duration: '0:30',
-            title: 'Instagram Reel'
-          };
-          break;
-        case 'tiktok':
-          content = {
-            uri: `https://picsum.photos/400/400?random=${i}${j}`,
-            duration: '0:15',
-            title: 'TikTok Video'
-          };
-          break;
-        case 'restaurant':
-          content = {
-            name: 'The Local Cafe',
-            rating: 4.5,
-            location: '123 Main St'
-          };
-          break;
-        case 'location':
-          content = {
-            name: 'Central Park',
-            coordinates: { lat: 40.7829, lng: -73.9654 }
-          };
-          break;
-        case 'link':
-          content = {
-            url: 'https://example.com',
-            title: 'Interesting Article',
-            description: 'Check this out!'
-          };
-          break;
-      }
-
-      memories.push({
-        id: `${i}-${j}`,
-        type,
-        content,
-        date: Timestamp.fromDate(new Date(date)),
-        isFavorite: Math.random() > 0.7
-      });
-    }
-  }
-  
-  return memories;
-};
-
 // Pastel color palette
 const COLORS = {
   background: '#F8F8F8',
@@ -119,7 +29,7 @@ const COLORS = {
 };
 
 export const MemoryFeed: React.FC = () => {
-  // Initialize currentDate with the most recent date from memories
+  const router = useRouter();
   const [currentDate, setCurrentDate] = React.useState(() => {
     const today = new Date();
     return today;
@@ -133,6 +43,7 @@ export const MemoryFeed: React.FC = () => {
   const scrollViewRef = React.useRef<ScrollView>(null);
   const { height: screenHeight } = Dimensions.get('window');
   const [isAddContentModalVisible, setIsAddContentModalVisible] = React.useState(false);
+  const unsubscribeRef = React.useRef<(() => void) | null>(null);
 
   // Refs for each date section
   const sectionRefs = React.useRef<{ [key: string]: View | null }>({});
@@ -143,7 +54,11 @@ export const MemoryFeed: React.FC = () => {
   // Fetch memories from Firebase
   useEffect(() => {
     const user = auth.currentUser;
-    if (!user) return;
+    if (!user) {
+      setMemories([]);
+      setIsLoading(false);
+      return;
+    }
 
     const memoriesRef = collection(db, 'memories');
     const q = query(
@@ -153,16 +68,27 @@ export const MemoryFeed: React.FC = () => {
       orderBy('date', 'desc')
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const memoryList: Memory[] = [];
-      snapshot.forEach((doc) => {
-        memoryList.push({ id: doc.id, ...doc.data() } as Memory);
-      });
-      setMemories(memoryList);
-      setIsLoading(false);
-    });
+    unsubscribeRef.current = onSnapshot(q, 
+      (snapshot) => {
+        const memoryList: Memory[] = [];
+        snapshot.forEach((doc) => {
+          memoryList.push({ id: doc.id, ...doc.data() } as Memory);
+        });
+        setMemories(memoryList);
+        setIsLoading(false);
+      },
+      (error) => {
+        console.error('Error fetching memories:', error);
+        setIsLoading(false);
+      }
+    );
 
-    return () => unsubscribe();
+    return () => {
+      if (unsubscribeRef.current) {
+        unsubscribeRef.current();
+        unsubscribeRef.current = null;
+      }
+    };
   }, []);
 
   // Update currentDate when memories change to match the most recent content
@@ -383,7 +309,10 @@ export const MemoryFeed: React.FC = () => {
             <TouchableOpacity style={styles.headerButton}>
               <Ionicons name="share-outline" size={24} color={COLORS.text} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.headerButton}>
+            <TouchableOpacity 
+              style={styles.headerButton}
+              onPress={() => router.push('/profile')}
+            >
               <Ionicons name="person-outline" size={24} color={COLORS.text} />
             </TouchableOpacity>
           </View>
