@@ -7,9 +7,10 @@
     "icon": "./assets/images/icon.png",
     "scheme": "smashbook2",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.esi.smashbook2"
     },
     "android": {
       "adaptiveIcon": {
@@ -32,6 +33,31 @@
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#ffffff"
+        }
+      ],
+      [
+        "expo-share-extension",
+        {
+          "activationRules": [
+            {
+              "type": "url",
+              "max": 1
+            },
+            {
+              "type": "text"
+            },
+            {
+              "type": "image",
+              "max": 1
+            }
+          ],
+          "backgroundColor": {
+            "red": 253,
+            "green": 252,
+            "blue": 248,
+            "alpha": 1.0
+          },
+          "height": 300
         }
       ]
     ],

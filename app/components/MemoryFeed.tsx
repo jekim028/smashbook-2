@@ -1,12 +1,13 @@
 import { Ionicons } from '@expo/vector-icons';
-import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
-import { collection, onSnapshot, orderBy, query, Timestamp, where } from 'firebase/firestore';
-import React, { useEffect } from 'react';
-import { ActivityIndicator, Animated, Dimensions, Linking, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { collection, doc, onSnapshot, query, Timestamp, updateDoc, where } from 'firebase/firestore';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Animated, Dimensions, Linking, SafeAreaView, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { auth, db } from '../../constants/Firebase';
 import AddContentModal from './AddContentModal';
+import AddMediaModal from './AddMediaModal';
 import MemoryCard from './MemoryCard';
+import MemoryOptionsModal from './MemoryOptionsModal';
 
 interface Memory {
   id: string;
@@ -16,16 +17,17 @@ interface Memory {
   isFavorite: boolean;
 }
 
-// Pastel color palette
+// Updated colors to match the fish logo theme used in the profile page
 const COLORS = {
-  background: '#F8F8F8',
+  background: '#fdfcf8', // Same as login page
   card: '#FFFFFF',
-  text: '#2C2C2E',
+  text: '#1A3140', // Navy from fish logo
   secondaryText: '#8E8E93',
-  accent: '#007AFF',
+  accent: '#FF914D', // Orange from fish logo
   shadow: 'rgba(0, 0, 0, 0.08)',
   header: 'rgba(255, 255, 255, 0.8)',
   searchBackground: 'rgba(255, 255, 255, 0.9)',
+  lightAccent: '#FFF0E6', // Lighter version of accent
 };
 
 export const MemoryFeed: React.FC = () => {
@@ -44,6 +46,10 @@ export const MemoryFeed: React.FC = () => {
   const { height: screenHeight } = Dimensions.get('window');
   const [isAddContentModalVisible, setIsAddContentModalVisible] = React.useState(false);
   const unsubscribeRef = React.useRef<(() => void) | null>(null);
+  const [isFanMenuOpen, setIsFanMenuOpen] = useState(false);
+  const [isAddMediaModalVisible, setIsAddMediaModalVisible] = useState(false);
+  const [selectedMemory, setSelectedMemory] = useState<Memory | null>(null);
+  const [isMemoryOptionsModalVisible, setIsMemoryOptionsModalVisible] = useState(false);
 
   // Refs for each date section
   const sectionRefs = React.useRef<{ [key: string]: View | null }>({});
@@ -63,9 +69,7 @@ export const MemoryFeed: React.FC = () => {
     const memoriesRef = collection(db, 'memories');
     const q = query(
       memoriesRef,
-      where('userId', '==', user.uid),
-      where('type', '==', 'link'),
-      orderBy('date', 'desc')
+      where('userId', '==', user.uid)
     );
 
     unsubscribeRef.current = onSnapshot(q, 
@@ -74,6 +78,14 @@ export const MemoryFeed: React.FC = () => {
         snapshot.forEach((doc) => {
           memoryList.push({ id: doc.id, ...doc.data() } as Memory);
         });
+        
+        // Sort locally instead of using orderBy in the query
+        memoryList.sort((a, b) => {
+          const dateA = a.date.toDate().getTime();
+          const dateB = b.date.toDate().getTime();
+          return dateB - dateA; // descending order (newest first)
+        });
+        
         setMemories(memoryList);
         setIsLoading(false);
       },
@@ -200,15 +212,47 @@ export const MemoryFeed: React.FC = () => {
   const handleMemoryPress = (memory: Memory) => {
     if (memory.type === 'link') {
       handleLinkPress(memory.content.url);
+    } else {
+      // Open the memory options modal
+      setSelectedMemory(memory);
+      setIsMemoryOptionsModalVisible(true);
     }
   };
 
   const handleFavorite = (memoryId: string) => {
+    if (!auth.currentUser) return;
+
+    // Find the memory to toggle its favorite status
+    const memory = memories.find(m => m.id === memoryId);
+    if (!memory) return;
+
+    // Update the favorite status in state
     setMemories(memories.map(memory => 
       memory.id === memoryId 
         ? { ...memory, isFavorite: !memory.isFavorite }
         : memory
     ));
+
+    // Update in Firestore
+    const newIsFavorite = !memory.isFavorite;
+    try {
+      const memoryRef = doc(db, 'memories', memoryId);
+      updateDoc(memoryRef, {
+        isFavorite: newIsFavorite
+      }).then(() => {
+        console.log(`Memory ${memoryId} favorite status updated to ${newIsFavorite}`);
+      }).catch(error => {
+        console.error('Error updating favorite status:', error);
+        // Revert local state if Firestore update fails
+        setMemories(memories.map(memory => 
+          memory.id === memoryId 
+            ? { ...memory, isFavorite: !newIsFavorite }
+            : memory
+        ));
+      });
+    } catch (error) {
+      console.error('Error updating favorite status:', error);
+    }
   };
 
   const formatDateHeader = (date: Date) => {
@@ -239,6 +283,81 @@ export const MemoryFeed: React.FC = () => {
     }
   };
 
+  const handleSharePress = async () => {
+    try {
+      await Share.share({
+        message: 'Check out my memories on Smashbook!',
+        title: 'Smashbook Memories',
+      });
+    } catch (error) {
+      console.error('Error sharing:', error);
+    }
+  };
+
+  const navigateToFavorites = () => {
+    router.push('/favorites' as any);
+  };
+
+  const toggleFanMenu = () => {
+    setIsFanMenuOpen(!isFanMenuOpen);
+  };
+
+  const handleAddLink = () => {
+    setIsFanMenuOpen(false);
+    setIsAddContentModalVisible(true);
+  };
+
+  const handleAddMedia = () => {
+    setIsFanMenuOpen(false);
+    setIsAddMediaModalVisible(true);
+  };
+
+  const refreshMemories = () => {
+    // This will be triggered after successful upload to refresh the memories list
+    if (unsubscribeRef.current) {
+      unsubscribeRef.current();
+      unsubscribeRef.current = null;
+    }
+    
+    setIsLoading(true);
+    
+    const user = auth.currentUser;
+    if (!user) {
+      setMemories([]);
+      setIsLoading(false);
+      return;
+    }
+
+    const memoriesRef = collection(db, 'memories');
+    const q = query(
+      memoriesRef,
+      where('userId', '==', user.uid)
+    );
+
+    unsubscribeRef.current = onSnapshot(q, 
+      (snapshot) => {
+        const memoryList: Memory[] = [];
+        snapshot.forEach((doc) => {
+          memoryList.push({ id: doc.id, ...doc.data() } as Memory);
+        });
+        
+        // Sort locally instead of using orderBy in the query
+        memoryList.sort((a, b) => {
+          const dateA = a.date.toDate().getTime();
+          const dateB = b.date.toDate().getTime();
+          return dateB - dateA; // descending order (newest first)
+        });
+        
+        setMemories(memoryList);
+        setIsLoading(false);
+      },
+      (error) => {
+        console.error('Error fetching memories:', error);
+        setIsLoading(false);
+      }
+    );
+  };
+
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
@@ -250,6 +369,10 @@ export const MemoryFeed: React.FC = () => {
   const renderMemory = (memory: Memory) => {
     switch (memory.type) {
       case 'link':
+        if (!memory.content || !memory.content.url) {
+          return null;
+        }
+        
         return (
           <TouchableOpacity
             key={memory.id}
@@ -265,6 +388,45 @@ export const MemoryFeed: React.FC = () => {
             <Text style={styles.url} numberOfLines={1}>
               {memory.content.url}
             </Text>
+            {memory.content.caption && (
+              <Text style={styles.caption} numberOfLines={2}>
+                {memory.content.caption}
+              </Text>
+            )}
+          </TouchableOpacity>
+        );
+      case 'photo':
+        if (!memory.content) {
+          return null;
+        }
+        
+        // Pass the memory ID and ensure we're including the thumbnail
+        const photoContent = {
+          ...memory.content,
+          memoryId: memory.id,
+        };
+        
+        return (
+          <TouchableOpacity
+            key={memory.id}
+            style={styles.memoryCard}
+            onPress={() => handleMemoryPress(memory)}
+          >
+            <View style={styles.memoryHeader}>
+              <Ionicons name="image" size={24} color={COLORS.accent} />
+              <Text style={styles.date}>
+                {memory.date instanceof Timestamp ? memory.date.toDate().toLocaleDateString() : new Date(memory.date).toLocaleDateString()}
+              </Text>
+            </View>
+            <View style={styles.photoContainer}>
+              <MemoryCard
+                type="photo"
+                content={photoContent}
+                isFavorite={memory.isFavorite}
+                onPress={() => handleMemoryPress(memory)}
+                onFavorite={() => handleFavorite(memory.id)}
+              />
+            </View>
             {memory.content.caption && (
               <Text style={styles.caption} numberOfLines={2}>
                 {memory.content.caption}
@@ -288,35 +450,43 @@ export const MemoryFeed: React.FC = () => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        {/* Header */}
-        <BlurView intensity={80} tint="light" style={styles.header}>
+        {/* Updated Header - Connected to Content */}
+        <View style={[
+          styles.header, 
+          { 
+            borderBottomLeftRadius: isSearchExpanded ? 0 : 16,
+            borderBottomRightRadius: isSearchExpanded ? 0 : 16 
+          }
+        ]}>
           <View style={styles.headerLeft}>
+            <Text style={styles.logoText}>Smashbook</Text>
             <Text style={styles.dateText}>
               {currentDate.toLocaleDateString('en-US', {
                 month: 'long',
-                day: 'numeric',
-                year: 'numeric'
+                day: 'numeric'
               })}
             </Text>
           </View>
           <View style={styles.headerRight}>
+            <TouchableOpacity style={styles.headerButton} onPress={navigateToFavorites}>
+              <Ionicons name="heart" size={24} color={COLORS.accent} />
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.headerButton} onPress={handleSharePress}>
+              <Ionicons name="share-outline" size={24} color={COLORS.text} />
+            </TouchableOpacity>
             <TouchableOpacity style={styles.headerButton} onPress={toggleSearch}>
               <Ionicons name="search-outline" size={24} color={COLORS.text} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.headerButton}>
-              <Ionicons name="heart-outline" size={24} color={COLORS.text} />
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.headerButton}>
-              <Ionicons name="share-outline" size={24} color={COLORS.text} />
             </TouchableOpacity>
             <TouchableOpacity 
               style={styles.headerButton}
               onPress={() => router.push('/profile')}
             >
-              <Ionicons name="person-outline" size={24} color={COLORS.text} />
+              <View style={styles.profileButton}>
+                <Ionicons name="person" size={18} color="#fff" />
+              </View>
             </TouchableOpacity>
           </View>
-        </BlurView>
+        </View>
 
         {/* Search Bar */}
         <Animated.View style={[
@@ -329,13 +499,16 @@ export const MemoryFeed: React.FC = () => {
             opacity: searchBarWidth
           }
         ]}>
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search memories..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholderTextColor={COLORS.secondaryText}
-          />
+          <View style={styles.searchInputContainer}>
+            <Ionicons name="search" size={18} color={COLORS.secondaryText} style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search memories..."
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholderTextColor={COLORS.secondaryText}
+            />
+          </View>
           {isSearchExpanded && (
             <TouchableOpacity 
               style={styles.closeSearchButton}
@@ -353,6 +526,7 @@ export const MemoryFeed: React.FC = () => {
           showsVerticalScrollIndicator={false}
           onScroll={handleScroll}
           scrollEventThrottle={16}
+          contentContainerStyle={styles.gridContentContainer}
         >
           {isLoading ? (
             <View style={styles.loadingContainer}>
@@ -360,7 +534,14 @@ export const MemoryFeed: React.FC = () => {
             </View>
           ) : memories.length === 0 ? (
             <View style={styles.emptyContainer}>
-              <Text style={styles.emptyText}>No links saved yet. Add some links to see them here!</Text>
+              <Ionicons name="images-outline" size={60} color={COLORS.secondaryText} style={styles.emptyIcon} />
+              <Text style={styles.emptyText}>No memories yet. Start capturing!</Text>
+              <TouchableOpacity 
+                style={styles.emptyAddButton}
+                onPress={() => setIsAddContentModalVisible(true)}
+              >
+                <Text style={styles.emptyAddButtonText}>Add Memory</Text>
+              </TouchableOpacity>
             </View>
           ) : (
             Object.entries(memoriesByDate).map(([dateKey, dayMemories]) => (
@@ -387,18 +568,59 @@ export const MemoryFeed: React.FC = () => {
           )}
         </ScrollView>
 
-        {/* Add Content Button */}
+        {/* Fan-out menu */}
+        {isFanMenuOpen && (
+          <View style={styles.fanMenuOverlay}>
+            <TouchableOpacity 
+              style={styles.fanMenuOption}
+              onPress={handleAddLink}
+            >
+              <View style={[styles.fanMenuButton, { backgroundColor: '#4A90E2' }]}>
+                <Ionicons name="link" size={22} color="#fff" />
+              </View>
+              <Text style={styles.fanMenuText}>Add Link</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.fanMenuOption}
+              onPress={handleAddMedia}
+            >
+              <View style={[styles.fanMenuButton, { backgroundColor: '#50C878' }]}>
+                <Ionicons name="image" size={22} color="#fff" />
+              </View>
+              <Text style={styles.fanMenuText}>Upload Media</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Add Content Button with Fan-out menu */}
         <TouchableOpacity 
           style={styles.addContentButton}
-          onPress={() => setIsAddContentModalVisible(true)}
+          onPress={toggleFanMenu}
         >
-          <Ionicons name="add" size={24} color={COLORS.card} />
+          <Ionicons name={isFanMenuOpen ? "close" : "add"} size={24} color="#fff" />
         </TouchableOpacity>
 
         <AddContentModal
           visible={isAddContentModalVisible}
           onClose={() => setIsAddContentModalVisible(false)}
         />
+
+        <AddMediaModal
+          visible={isAddMediaModalVisible}
+          onClose={() => setIsAddMediaModalVisible(false)}
+          onSuccess={refreshMemories}
+        />
+
+        {selectedMemory && (
+          <MemoryOptionsModal
+            visible={isMemoryOptionsModalVisible}
+            onClose={() => setIsMemoryOptionsModalVisible(false)}
+            memoryId={selectedMemory.id}
+            currentCaption={selectedMemory.content?.caption || ''}
+            onSuccess={refreshMemories}
+          />
+        )}
       </View>
     </SafeAreaView>
   );
@@ -419,11 +641,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.shadow,
+    backgroundColor: COLORS.card,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+    zIndex: 10,
   },
   headerLeft: {
     flex: 1,
+  },
+  logoText: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: 4,
   },
   headerRight: {
     flexDirection: 'row',
@@ -433,37 +666,55 @@ const styles = StyleSheet.create({
     padding: 8,
     marginLeft: 8,
   },
+  profileButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   dateText: {
-    fontSize: 20,
-    fontFamily: 'System',
-    fontWeight: '600',
-    color: COLORS.text,
+    fontSize: 14,
+    fontWeight: '500',
+    color: COLORS.secondaryText,
   },
   searchContainer: {
     overflow: 'hidden',
-    backgroundColor: COLORS.searchBackground,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.shadow,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: COLORS.card,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+    marginBottom: 8,
+  },
+  searchInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F5F5F5',
+    borderRadius: 12,
+    paddingHorizontal: 12,
+  },
+  searchIcon: {
+    marginRight: 8,
   },
   searchInput: {
-    height: 48,
-    paddingHorizontal: 16,
-    fontSize: 17,
-    fontFamily: 'System',
+    flex: 1,
+    height: 40,
+    fontSize: 16,
     color: COLORS.text,
   },
   closeSearchButton: {
     position: 'absolute',
-    right: 16,
-    top: 14,
+    right: 28,
+    top: 17,
     padding: 4,
-  },
-  scrollContainer: {
-    flex: 1,
-    overflow: 'hidden',
   },
   gridContainer: {
     flex: 1,
+  },
+  gridContentContainer: {
+    paddingBottom: 24,
   },
   dayContainer: {
     marginBottom: 16,
@@ -471,21 +722,26 @@ const styles = StyleSheet.create({
   dateHeader: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: COLORS.background,
+    marginTop: 8,
   },
   dateHeaderText: {
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '600',
-    color: COLORS.secondaryText,
+    color: COLORS.text,
+    marginBottom: 4,
   },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     padding: 8,
+    justifyContent: 'space-between',
   },
   loadingContainer: {
-    padding: 20,
+    padding: 40,
     alignItems: 'center',
+    justifyContent: 'center',
+    flex: 1,
+    minHeight: 300,
   },
   addContentButton: {
     position: 'absolute',
@@ -497,25 +753,89 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.accent,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: COLORS.shadow,
+    shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 4,
     },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 5,
+    zIndex: 100,
+  },
+  fanMenuOverlay: {
+    position: 'absolute',
+    right: 16,
+    bottom: 80,
+    alignItems: 'flex-end',
+    zIndex: 99,
+  },
+  fanMenuOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    borderRadius: 20,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    paddingRight: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  fanMenuButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  fanMenuText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.text,
+  },
+  emptyContainer: {
+    padding: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minHeight: 400,
+  },
+  emptyIcon: {
+    marginBottom: 16,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: COLORS.secondaryText,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  emptyAddButton: {
+    backgroundColor: COLORS.accent,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 20,
+  },
+  emptyAddButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
   },
   memoryCard: {
     backgroundColor: COLORS.card,
     padding: 12,
-    borderRadius: 12,
-    shadowColor: COLORS.shadow,
+    borderRadius: 16,
+    shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-    height: 160,
   },
   memoryHeader: {
     flexDirection: 'row',
@@ -536,16 +856,16 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: COLORS.secondaryText,
   },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
+  photoContainer: {
+    width: '100%',
+    height: 200,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 8,
   },
-  emptyText: {
-    textAlign: 'center',
-    fontSize: 16,
-    color: COLORS.secondaryText,
+  photoPreview: {
+    width: '100%',
+    height: '100%',
   },
 });
 

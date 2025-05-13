@@ -9,24 +9,26 @@ interface MemoryCardProps {
   isFavorite: boolean;
   onPress: () => void;
   onFavorite: () => void;
+  style?: any; // Allow custom styles to be passed
 }
 
 const { width: screenWidth } = Dimensions.get('window');
 const CARD_WIDTH = (screenWidth - 48) / 2; // 2 columns with proper padding
-const CARD_HEIGHT = CARD_WIDTH * 1.5; // Fixed height ratio for all cards
+const CARD_HEIGHT = CARD_WIDTH * 1.3; // Adjusted height ratio for a more compact look
 
-// Pastel color palette
+// Updated colors to match the fish logo theme used in profile page
 const COLORS = {
-  background: '#F8F8F8',
+  background: '#fdfcf8', // Same as login page
   card: '#FFFFFF',
-  text: '#2C2C2E',
+  text: '#1A3140', // Navy from fish logo
   secondaryText: '#8E8E93',
-  accent: '#007AFF',
+  accent: '#FF914D', // Orange from fish logo
   shadow: 'rgba(0, 0, 0, 0.08)',
-  favorite: '#FF2D55',
-  favoriteBackground: 'rgba(255, 45, 85, 0.1)',
+  favorite: '#FF914D', // Using accent color for consistency
+  favoriteBackground: 'rgba(255, 145, 77, 0.1)', // Semi-transparent accent
   cardBackground: '#FFFFFF',
-  cardBorder: 'rgba(0, 0, 0, 0.1)',
+  cardBorder: 'rgba(0, 0, 0, 0.05)',
+  lightAccent: '#FFF0E6', // Lighter version of accent
 };
 
 const MemoryCard: React.FC<MemoryCardProps> = ({
@@ -35,15 +37,23 @@ const MemoryCard: React.FC<MemoryCardProps> = ({
   isFavorite,
   onPress,
   onFavorite,
+  style,
 }) => {
   const [linkMetadata, setLinkMetadata] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [fullImageUri, setFullImageUri] = useState<string | null>(null);
 
   useEffect(() => {
-    if (type === 'link' && content.url && !content.previewImage) {
+    if (type === 'link' && content?.url && !content.previewImage) {
       fetchLinkMetadata();
     }
-  }, [type, content.url]);
+    
+    // We don't need to fetch the full image anymore as we're using thumbnails
+    // directly stored in the content object
+    if (content?.thumbnail) {
+      setFullImageUri(content.thumbnail);
+    }
+  }, [type, content]);
 
   const fetchLinkMetadata = async () => {
     if (!content.url) return;
@@ -89,17 +99,33 @@ const MemoryCard: React.FC<MemoryCardProps> = ({
       case 'photo':
       case 'reel':
       case 'tiktok':
+        if (!content) {
+          return (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color={COLORS.accent} />
+              <Text style={styles.loadingText}>Loading image...</Text>
+            </View>
+          );
+        }
+        
+        const imageUri = content.thumbnail || content.uri || '';
         return (
           <>
-            <Image 
-              source={{ uri: content.uri }} 
-              style={styles.image}
-              resizeMode="cover"
-            />
+            {isLoading ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color={COLORS.accent} />
+              </View>
+            ) : (
+              <Image 
+                source={{ uri: imageUri }} 
+                style={styles.image}
+                resizeMode="cover"
+              />
+            )}
             <View style={styles.mediaOverlay}>
               {type === 'reel' && <Ionicons name="logo-instagram" size={20} color={COLORS.card} />}
               {type === 'tiktok' && <Ionicons name="logo-tiktok" size={20} color={COLORS.card} />}
-              {content.duration && (
+              {content?.duration && (
                 <Text style={styles.duration}>{content.duration}</Text>
               )}
             </View>
@@ -125,7 +151,7 @@ const MemoryCard: React.FC<MemoryCardProps> = ({
             <Ionicons name="restaurant-outline" size={32} color={COLORS.accent} />
             <Text style={styles.restaurantName}>{content.name}</Text>
             <View style={styles.ratingContainer}>
-              <Ionicons name="star" size={16} color="#FFD700" />
+              <Ionicons name="star" size={16} color={COLORS.accent} />
               <Text style={styles.rating}>{content.rating}</Text>
             </View>
           </View>
@@ -151,7 +177,9 @@ const MemoryCard: React.FC<MemoryCardProps> = ({
                 resizeMode="cover"
               />
             ) : (
-              <Ionicons name="link-outline" size={32} color={COLORS.accent} />
+              <View style={styles.linkIconContainer}>
+                <Ionicons name="link-outline" size={32} color={COLORS.accent} />
+              </View>
             )}
             <Text style={styles.linkTitle} numberOfLines={1}>
               {content.title || linkMetadata?.title || 'Link'}
@@ -178,15 +206,16 @@ const MemoryCard: React.FC<MemoryCardProps> = ({
 
   return (
     <TouchableOpacity 
-      style={[styles.container]} 
+      style={[styles.container, style]} 
       onPress={onPress}
-      activeOpacity={0.7}
+      activeOpacity={0.85}
     >
       {renderContent()}
       
       <TouchableOpacity 
         style={[styles.favoriteButton, isFavorite && styles.favoriteButtonActive]}
         onPress={onFavorite}
+        hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
       >
         <Ionicons 
           name={isFavorite ? 'heart' : 'heart-outline'} 
@@ -203,17 +232,17 @@ const styles = StyleSheet.create({
     width: CARD_WIDTH,
     height: CARD_HEIGHT,
     margin: 8,
-    borderRadius: 16,
+    borderRadius: 20,
     backgroundColor: COLORS.card,
     overflow: 'hidden',
-    shadowColor: COLORS.shadow,
+    shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 2,
     },
-    shadowOpacity: 1,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
     borderWidth: 1,
     borderColor: COLORS.cardBorder,
   },
@@ -226,46 +255,45 @@ const styles = StyleSheet.create({
   image: {
     width: '100%',
     height: '100%',
+    borderRadius: 20,
   },
   iconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: COLORS.card,
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
-    shadowColor: COLORS.shadow,
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.5,
-    shadowRadius: 8,
-    elevation: 2,
+    padding: 16,
+    backgroundColor: COLORS.lightAccent,
+  },
+  linkIconContainer: {
+    width: '100%',
+    height: 100,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.lightAccent,
+    borderRadius: 12,
+    marginBottom: 8,
   },
   text: {
     fontSize: 15,
-    fontFamily: 'System',
     fontWeight: '500',
     color: COLORS.text,
     textAlign: 'center',
-    padding: 16,
+    marginTop: 12,
     lineHeight: 20,
   },
   favoriteButton: {
     position: 'absolute',
-    top: 12,
-    right: 12,
+    top: 8,
+    right: 8,
     padding: 8,
     borderRadius: 20,
-    backgroundColor: COLORS.card,
-    shadowColor: COLORS.shadow,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    shadowColor: '#000',
     shadowOffset: {
       width: 0,
       height: 2,
     },
-    shadowOpacity: 0.5,
+    shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
   },
@@ -291,29 +319,25 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.cardBackground,
-    borderWidth: 1,
-    borderColor: COLORS.cardBorder,
-    borderRadius: 16,
+    backgroundColor: COLORS.lightAccent,
+    padding: 16,
   },
   voiceDuration: {
     marginTop: 8,
-    color: COLORS.secondaryText,
+    color: COLORS.text,
     fontSize: 14,
+    fontWeight: '500',
   },
   textContainer: {
     flex: 1,
     padding: 16,
-    backgroundColor: COLORS.cardBackground,
-    borderWidth: 1,
-    borderColor: COLORS.cardBorder,
-    borderRadius: 16,
+    backgroundColor: COLORS.lightAccent,
   },
   sender: {
     fontSize: 14,
     fontWeight: '600',
     color: COLORS.text,
-    marginBottom: 4,
+    marginBottom: 6,
   },
   messageText: {
     fontSize: 15,
@@ -324,11 +348,8 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.cardBackground,
+    backgroundColor: COLORS.lightAccent,
     padding: 16,
-    borderWidth: 1,
-    borderColor: COLORS.cardBorder,
-    borderRadius: 16,
   },
   restaurantName: {
     fontSize: 15,
@@ -344,18 +365,15 @@ const styles = StyleSheet.create({
   },
   rating: {
     marginLeft: 4,
-    color: COLORS.secondaryText,
+    color: COLORS.text,
     fontSize: 14,
   },
   locationContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.cardBackground,
+    backgroundColor: COLORS.lightAccent,
     padding: 16,
-    borderWidth: 1,
-    borderColor: COLORS.cardBorder,
-    borderRadius: 16,
   },
   locationName: {
     fontSize: 15,
@@ -366,44 +384,45 @@ const styles = StyleSheet.create({
   },
   linkContainer: {
     flex: 1,
-    padding: 16,
-    justifyContent: 'center',
-    alignItems: 'center',
+    padding: 12,
+    justifyContent: 'flex-start',
     backgroundColor: COLORS.cardBackground,
   },
   linkPreviewImage: {
     width: '100%',
-    height: 120,
-    borderRadius: 8,
+    height: 100,
+    borderRadius: 12,
     marginBottom: 8,
   },
   linkTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: COLORS.text,
-    marginTop: 8,
-    textAlign: 'center',
+    marginBottom: 2,
   },
   linkUrl: {
     fontSize: 12,
     color: COLORS.accent,
-    marginTop: 4,
-    textAlign: 'center',
+    marginBottom: 4,
   },
   linkDescription: {
-    fontSize: 14,
+    fontSize: 12,
     color: COLORS.secondaryText,
-    marginTop: 8,
-    textAlign: 'center',
+    lineHeight: 16,
   },
   loadingContainer: {
     width: '100%',
-    height: 120,
+    height: 100,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: COLORS.cardBackground,
-    borderRadius: 8,
+    backgroundColor: COLORS.lightAccent,
+    borderRadius: 12,
     marginBottom: 8,
+  },
+  loadingText: {
+    marginTop: 8,
+    color: COLORS.secondaryText,
+    fontSize: 14,
   },
 });
 
