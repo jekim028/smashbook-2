@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from 'expo-blur';
 import { useRouter } from 'expo-router';
-import { collection, onSnapshot, orderBy, query, Timestamp, where } from 'firebase/firestore';
+import { collection, onSnapshot, query, Timestamp, where } from 'firebase/firestore';
 import React, { useEffect } from 'react';
 import { ActivityIndicator, Animated, Dimensions, Linking, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { auth, db } from '../../constants/Firebase';
@@ -60,20 +60,45 @@ export const MemoryFeed: React.FC = () => {
       return;
     }
 
+    console.log('Setting up memory feed listener for user:', user.uid);
     const memoriesRef = collection(db, 'memories');
+    
+    // Create a query that gets all link memories
     const q = query(
       memoriesRef,
-      where('userId', '==', user.uid),
-      where('type', '==', 'link'),
-      orderBy('date', 'desc')
+      where('type', '==', 'link')
     );
 
-    unsubscribeRef.current = onSnapshot(q, 
+    // Set up real-time listener
+    const unsubscribe = onSnapshot(q, 
       (snapshot) => {
+        console.log('Received memory feed update, documents:', snapshot.docs.length);
         const memoryList: Memory[] = [];
         snapshot.forEach((doc) => {
-          memoryList.push({ id: doc.id, ...doc.data() } as Memory);
+          const data = doc.data();
+          console.log('Processing memory:', {
+            id: doc.id,
+            userId: data.userId,
+            sharedWith: data.sharedWith,
+            isUserMemory: data.userId === user.uid,
+            isSharedWithUser: data.sharedWith && data.sharedWith.includes(user.uid)
+          });
+          
+          // Include memories that:
+          // 1. Were created by the user
+          // 2. Were shared with the user
+          if (
+            data.userId === user.uid || 
+            (data.sharedWith && data.sharedWith.includes(user.uid))
+          ) {
+            memoryList.push({ id: doc.id, ...data } as Memory);
+          }
         });
+
+        // Sort memories by date after filtering
+        memoryList.sort((a, b) => b.date.toDate().getTime() - a.date.toDate().getTime());
+        
+        console.log('Final memory list length:', memoryList.length);
         setMemories(memoryList);
         setIsLoading(false);
       },
@@ -83,11 +108,13 @@ export const MemoryFeed: React.FC = () => {
       }
     );
 
+    // Store unsubscribe function
+    unsubscribeRef.current = unsubscribe;
+
+    // Cleanup function
     return () => {
-      if (unsubscribeRef.current) {
-        unsubscribeRef.current();
-        unsubscribeRef.current = null;
-      }
+      console.log('Cleaning up memory feed listener');
+      unsubscribe();
     };
   }, []);
 
