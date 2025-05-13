@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import { addDoc, collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore';
+import { addDoc, collection, doc, getDoc, getDocs, query, Timestamp, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { auth, db } from '../../constants/Firebase';
@@ -98,8 +98,23 @@ const AddContentModal: React.FC<AddContentModalProps> = ({ visible, onClose }): 
       const metadata = await getLinkMetadata(link);
 
       // Save link to Firestore with metadata
-      console.log('Saving link to Firestore');
-      console.log(metadata);
+      console.log('Saving link to Firestore with data:', {
+        type: 'link',
+        content: {
+          url: link,
+          caption: description,
+          title: metadata.title,
+          description: metadata.description,
+          previewImage: metadata.image,
+          publisher: metadata.publisher || '',
+          previewUrl: metadata.url
+        },
+        userId: user.uid,
+        date: Timestamp.now(),
+        isFavorite: false,
+        sharedWith: selectedFriends,
+      });
+
       const docRef = await addDoc(collection(db, 'memories'), {
         type: 'link',
         content: {
@@ -112,7 +127,7 @@ const AddContentModal: React.FC<AddContentModalProps> = ({ visible, onClose }): 
           previewUrl: metadata.url
         },
         userId: user.uid,
-        date: new Date(),
+        date: Timestamp.now(),
         isFavorite: false,
         sharedWith: selectedFriends,
       });
