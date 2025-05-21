@@ -1,5 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { doc, getDoc } from 'firebase/firestore';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Dimensions,
@@ -16,6 +17,7 @@ import {
   View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { db } from '../../constants/Firebase';
 // Temporarily disable image caching
 // import { getCachedImageUri, preloadImages } from '../utils/imageCache';
 
@@ -48,6 +50,7 @@ interface MediaItem {
   date?: any;
   comments?: any[];
   createdAt?: any;
+  sharedWith?: string[];
 }
 
 interface MediaDetailModalProps {
@@ -56,6 +59,12 @@ interface MediaDetailModalProps {
   initialIndex: number;
   onClose: () => void;
   onFavorite: (id: string) => void;
+}
+
+interface SharedUser {
+  id: string;
+  photoURL: string | null;
+  displayName: string | null;
 }
 
 // Temporarily simplify this function to just log rather than actually preload
@@ -92,6 +101,7 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
   const currentMedia = mediaList[currentIndex];
+  const [sharedUsers, setSharedUsers] = useState<{[key: string]: SharedUser[]}>({});
 
   useEffect(() => {
     if (visible && flatListRef.current && mediaList.length > 0) {
@@ -106,23 +116,72 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
     }
   }, [visible, reversedInitialIndex, mediaList]);
 
+  // Add effect to update currentIndex when modal opens
+  useEffect(() => {
+    if (visible) {
+      setCurrentIndex(reversedInitialIndex);
+    }
+  }, [visible, reversedInitialIndex]);
+
   useEffect(() => {
     // Log the data of the current media for debugging
-    if (currentMedia && __DEV__) {
-      console.log('Current media content in modal:', {
-        id: currentMedia.id,
-        type: currentMedia.type,
-        content: {
-          uri: currentMedia.content?.uri,
-          thumbnail: currentMedia.content?.thumbnail,
-          previewImage: currentMedia.content?.previewImage,
-          title: currentMedia.content?.title,
-          url: currentMedia.content?.url,
-          caption: currentMedia.content?.caption
-        }
-      });
+    if (visible && __DEV__) {
+      const currentItem = mediaList[currentIndex];
+      if (currentItem) {
+        console.log('Current media content in modal:', {
+          id: currentItem.id,
+          type: currentItem.type,
+          content: {
+            uri: currentItem.content?.uri,
+            title: currentItem.content?.title,
+            caption: currentItem.content?.caption
+          },
+          sharedWith: currentItem.sharedWith
+        });
+      }
     }
-  }, [currentIndex, currentMedia]);
+  }, [currentIndex, mediaList, visible]);
+
+  // Add function to fetch user data
+  const fetchUserData = async (userId: string) => {
+    try {
+      const userDoc = await getDoc(doc(db, 'users', userId));
+      if (userDoc.exists()) {
+        const userData = userDoc.data();
+        return {
+          id: userId,
+          photoURL: userData.photoURL || null,
+          displayName: userData.displayName || null
+        };
+      }
+      return null;
+    } catch (error) {
+      console.error('Error fetching user data:', error);
+      return null;
+    }
+  };
+
+  // Add effect to fetch user data when media changes
+  useEffect(() => {
+    const fetchSharedUsers = async () => {
+      if (!currentMedia?.sharedWith) return;
+
+      const newSharedUsers: SharedUser[] = [];
+      for (const userId of currentMedia.sharedWith) {
+        const userData = await fetchUserData(userId);
+        if (userData) {
+          newSharedUsers.push(userData);
+        }
+      }
+      
+      setSharedUsers(prev => ({
+        ...prev,
+        [currentMedia.id]: newSharedUsers
+      }));
+    };
+
+    fetchSharedUsers();
+  }, [currentMedia?.id, currentMedia?.sharedWith]);
 
   // Change goHome function to simply close the modal instead of navigating
   const goHome = () => {
@@ -237,9 +296,7 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
     return comments[mediaId] || [];
   };
 
-  const renderItem = ({ item, index }: { item: MediaItem, index: number }) => {
-    console.log(`Rendering item ${index} (${item.id}): ${item.type}, caption: ${item.caption || 'none'}`);
-    
+  const renderItem = ({ item, index }: { item: MediaItem, index: number }) => {    
     // Get comments for this specific item
     const mediaComments = getCommentsForMedia(item.id);
     
@@ -301,6 +358,32 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
                 <Text style={styles.sharedByText}>
                   From {item.content.sharedBy.displayName || 'Someone'}
                 </Text>
+              </View>
+            )}
+
+            {/* Update Shared With section */}
+            {item.sharedWith && item.sharedWith.length > 0 && (
+              <View style={styles.sharedWithList}>
+                {sharedUsers[item.id]?.map((user, index) => (
+                  <View 
+                    key={user.id} 
+                    style={[
+                      styles.sharedWithAvatar,
+                      { marginLeft: index > 0 ? -16 : 0 }
+                    ]}
+                  >
+                    {user.photoURL ? (
+                      <Image 
+                        source={{ uri: user.photoURL }} 
+                        style={styles.sharedWithAvatarInner}
+                      />
+                    ) : (
+                      <View style={styles.sharedWithAvatarInner}>
+                        <Ionicons name="person" size={20} color="#8E8E93" />
+                      </View>
+                    )}
+                  </View>
+                ))}
               </View>
             )}
 
@@ -367,17 +450,6 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
 
   // Completely simplified renderMedia function
   const renderMedia = (item: MediaItem) => {
-    console.log('Rendering media item:', {
-      id: item.id,
-      type: item.type,
-      content: {
-        uri: item.content?.uri,
-        thumbnail: item.content?.thumbnail,
-        previewImage: item.content?.previewImage,
-        title: item.content?.title,
-        url: item.content?.url
-      }
-    });
 
     // Get image URI - focus on thumbnail first, then fall back to uri
     const imageUri = item.content?.thumbnail || item.content?.uri || '';
@@ -788,6 +860,38 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#333',
     fontWeight: '400',
+  },
+  sharedWithList: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 12,
+  },
+  sharedWithAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#fff',
+    borderWidth: 2,
+    borderColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 1,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  sharedWithAvatarInner: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
   },
 });
 

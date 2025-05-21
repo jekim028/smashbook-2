@@ -16,6 +16,7 @@ interface Memory {
   content: any;
   date: Timestamp;
   isFavorite: boolean;
+  sharedWith?: string[]; // Add sharedWith field as optional array of strings
 }
 
 // Updated colors to match the fish logo theme used in the profile page
@@ -765,6 +766,7 @@ export const MemoryFeed: React.FC = () => {
               caption: m.content?.caption || '',
               comments: m.content?.comments || [],
               date: m.date,
+              sharedWith: m.sharedWith || [], // Add the sharedWith field
             }))}
           initialIndex={mediaDetailIndex}
           onClose={() => setIsMediaDetailVisible(false)}
