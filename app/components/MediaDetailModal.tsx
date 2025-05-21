@@ -102,6 +102,7 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
   const navigation = useNavigation();
   const currentMedia = mediaList[currentIndex];
   const [sharedUsers, setSharedUsers] = useState<{[key: string]: SharedUser[]}>({});
+  const [showSharedWithModal, setShowSharedWithModal] = useState(false);
 
   useEffect(() => {
     if (visible && flatListRef.current && mediaList.length > 0) {
@@ -363,7 +364,10 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
 
             {/* Update Shared With section */}
             {item.sharedWith && item.sharedWith.length > 0 && (
-              <View style={styles.sharedWithList}>
+              <TouchableOpacity 
+                onPress={() => setShowSharedWithModal(true)}
+                style={styles.sharedWithList}
+              >
                 {sharedUsers[item.id]?.map((user, index) => (
                   <View 
                     key={user.id} 
@@ -384,7 +388,7 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
                     )}
                   </View>
                 ))}
-              </View>
+              </TouchableOpacity>
             )}
 
             {/* Caption - ensure it's visible when present */}
@@ -662,6 +666,54 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
     return 'No date available';
   };
 
+  // Add SharedWithModal component before the return statement
+  const SharedWithModal = () => {
+    const currentUsers = sharedUsers[currentMedia?.id] || [];
+    
+    return (
+      <Modal
+        visible={showSharedWithModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowSharedWithModal(false)}
+      >
+        <View style={styles.sharedWithModalContainer}>
+          <View style={[styles.sharedWithModalContent, { paddingBottom: insets.bottom || 20 }]}>
+            <View style={styles.sharedWithModalHeader}>
+              <Text style={styles.sharedWithModalTitle}>Shared With</Text>
+              <TouchableOpacity 
+                onPress={() => setShowSharedWithModal(false)}
+                style={styles.sharedWithModalCloseButton}
+              >
+                <Ionicons name="close" size={24} color="#222" />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.sharedWithModalList}>
+              {currentUsers.map((user) => (
+                <View key={user.id} style={styles.sharedWithModalItem}>
+                  {user.photoURL ? (
+                    <Image 
+                      source={{ uri: user.photoURL }} 
+                      style={styles.sharedWithModalAvatar}
+                    />
+                  ) : (
+                    <View style={styles.sharedWithModalAvatarPlaceholder}>
+                      <Ionicons name="person" size={20} color="#8E8E93" />
+                    </View>
+                  )}
+                  <Text style={styles.sharedWithModalName}>
+                    {user.displayName || 'Unknown User'}
+                  </Text>
+                </View>
+              ))}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    );
+  };
+
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <View style={[styles.container, { paddingTop: insets.top }]}>
@@ -692,6 +744,7 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
           onScrollToIndexFailed={handleScrollToIndexFailed}
         />
       </View>
+      <SharedWithModal />
     </Modal>
   );
 };
@@ -892,6 +945,64 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
+  },
+  sharedWithModalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  sharedWithModalContent: {
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    minHeight: height * 0.5,
+    maxHeight: height * 0.7,
+  },
+  sharedWithModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  sharedWithModalTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#222',
+  },
+  sharedWithModalCloseButton: {
+    padding: 8,
+  },
+  sharedWithModalList: {
+    padding: 16,
+  },
+  sharedWithModalItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0f0',
+  },
+  sharedWithModalAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    marginRight: 16,
+  },
+  sharedWithModalAvatarPlaceholder: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#f0f0f0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  sharedWithModalName: {
+    fontSize: 16,
+    color: '#222',
+    fontWeight: '500',
   },
 });
 
