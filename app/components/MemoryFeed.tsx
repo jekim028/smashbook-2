@@ -205,7 +205,8 @@ export const MemoryFeed: React.FC = () => {
       where('userId', '==', user.uid)
     );
 
-    unsubscribeRef.current = onSnapshot(q, 
+    // Set up real-time listener for user's own memories
+    const ownMemoriesUnsubscribe = onSnapshot(q, 
       (snapshot) => {
         const memoryList: Memory[] = [];
         snapshot.forEach((doc) => {
@@ -223,10 +224,45 @@ export const MemoryFeed: React.FC = () => {
         setIsLoading(false);
       },
       (error) => {
-        console.error('Error fetching memories:', error);
+        console.error('Error fetching own memories:', error);
         setIsLoading(false);
       }
     );
+
+    // Set up real-time listener for shared memories
+    const sharedMemoriesRef = collection(db, 'memories');
+    const sharedQ = query(
+      sharedMemoriesRef,
+      where('sharedWith', 'array-contains', user.uid)
+    );
+
+    const sharedMemoriesUnsubscribe = onSnapshot(sharedQ,
+      (snapshot) => {
+        const sharedMemoryList: Memory[] = [];
+        snapshot.forEach((doc) => {
+          sharedMemoryList.push({ id: doc.id, ...doc.data() } as Memory);
+        });
+
+        // Combine with existing memories and sort
+        setMemories(prevMemories => {
+          const combined = [...prevMemories, ...sharedMemoryList];
+          return combined.sort((a, b) => {
+            const dateA = a.date.toDate().getTime();
+            const dateB = b.date.toDate().getTime();
+            return dateB - dateA; // descending order (newest first)
+          });
+        });
+      },
+      (error) => {
+        console.error('Error fetching shared memories:', error);
+      }
+    );
+
+    // Store both unsubscribe functions
+    unsubscribeRef.current = () => {
+      ownMemoriesUnsubscribe();
+      sharedMemoriesUnsubscribe();
+    };
 
     return () => {
       if (unsubscribeRef.current) {
@@ -428,13 +464,14 @@ export const MemoryFeed: React.FC = () => {
       return;
     }
 
+    // Set up real-time listener for user's own memories
     const memoriesRef = collection(db, 'memories');
     const q = query(
       memoriesRef,
       where('userId', '==', user.uid)
     );
 
-    unsubscribeRef.current = onSnapshot(q, 
+    const ownMemoriesUnsubscribe = onSnapshot(q, 
       (snapshot) => {
         const memoryList: Memory[] = [];
         snapshot.forEach((doc) => {
@@ -452,10 +489,45 @@ export const MemoryFeed: React.FC = () => {
         setIsLoading(false);
       },
       (error) => {
-        console.error('Error fetching memories:', error);
+        console.error('Error fetching own memories:', error);
         setIsLoading(false);
       }
     );
+
+    // Set up real-time listener for shared memories
+    const sharedMemoriesRef = collection(db, 'memories');
+    const sharedQ = query(
+      sharedMemoriesRef,
+      where('sharedWith', 'array-contains', user.uid)
+    );
+
+    const sharedMemoriesUnsubscribe = onSnapshot(sharedQ,
+      (snapshot) => {
+        const sharedMemoryList: Memory[] = [];
+        snapshot.forEach((doc) => {
+          sharedMemoryList.push({ id: doc.id, ...doc.data() } as Memory);
+        });
+
+        // Combine with existing memories and sort
+        setMemories(prevMemories => {
+          const combined = [...prevMemories, ...sharedMemoryList];
+          return combined.sort((a, b) => {
+            const dateA = a.date.toDate().getTime();
+            const dateB = b.date.toDate().getTime();
+            return dateB - dateA; // descending order (newest first)
+          });
+        });
+      },
+      (error) => {
+        console.error('Error fetching shared memories:', error);
+      }
+    );
+
+    // Store both unsubscribe functions
+    unsubscribeRef.current = () => {
+      ownMemoriesUnsubscribe();
+      sharedMemoriesUnsubscribe();
+    };
   };
 
   const handleContentSizeChange = (width: number, height: number) => {
