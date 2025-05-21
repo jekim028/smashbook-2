@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { addDoc, collection, doc, getDoc, getDocs, query, Timestamp, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Keyboard, Modal, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Keyboard, KeyboardAvoidingView, Modal, Platform, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import { auth, db } from '../../constants/Firebase';
 import { getLinkMetadata } from '../utils/linkPreview';
 
@@ -256,7 +256,12 @@ const AddContentModal: React.FC<AddContentModalProps> = ({ visible, onClose }): 
     >
       <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
         <View style={styles.modalContainer}>
-          {isFriendSelection ? renderFriendSelection() : renderLinkInput()}
+          <KeyboardAvoidingView 
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            style={styles.keyboardAvoidingView}
+          >
+            {isFriendSelection ? renderFriendSelection() : renderLinkInput()}
+          </KeyboardAvoidingView>
         </View>
       </TouchableWithoutFeedback>
     </Modal>
@@ -268,6 +273,9 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
+  },
+  keyboardAvoidingView: {
+    width: '100%',
   },
   modalContent: {
     backgroundColor: '#fff',
