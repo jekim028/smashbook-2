@@ -35,6 +35,10 @@ interface MediaItem {
     height?: number;
     aspectRatio?: number;
     exifDate?: string;
+    sharedBy?: {
+      photoURL: string | null;
+      displayName: string | null;
+    };
   };
   isFavorite?: boolean;
   caption?: string;
@@ -267,6 +271,25 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
                 </TouchableOpacity>
               </View>
             </View>
+
+            {/* Shared by section */}
+            {item.content?.sharedBy && (
+              <View style={styles.sharedByContainer}>
+                {item.content.sharedBy.photoURL ? (
+                  <Image 
+                    source={{ uri: item.content.sharedBy.photoURL }} 
+                    style={styles.sharedByImage}
+                  />
+                ) : (
+                  <View style={styles.sharedByPlaceholder}>
+                    <Ionicons name="person" size={16} color="#8E8E93" />
+                  </View>
+                )}
+                <Text style={styles.sharedByText}>
+                  From {item.content.sharedBy.displayName || 'Someone'}
+                </Text>
+              </View>
+            )}
 
             {/* Caption - ensure it's visible when present */}
             {(item.caption || item.content?.caption) && (
@@ -633,6 +656,39 @@ const styles = StyleSheet.create({
   },
   sendButtonActive: {
     backgroundColor: '#FF914D',
+  },
+  sharedByContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    paddingHorizontal: 4,
+    backgroundColor: '#f8f8f8',
+    padding: 12,
+    borderRadius: 12,
+  },
+  sharedByImage: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    marginRight: 8,
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  sharedByPlaceholder: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#e0e0e0',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  sharedByText: {
+    fontSize: 16,
+    color: '#333',
+    fontWeight: '400',
   },
 });
 

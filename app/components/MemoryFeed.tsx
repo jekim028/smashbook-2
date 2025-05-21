@@ -754,7 +754,10 @@ export const MemoryFeed: React.FC = () => {
             .map(m => ({
               id: m.id,
               type: m.type === 'reel' ? 'video' : m.type, // treat 'reel' as 'video'
-              content: m.content,
+              content: {
+                ...m.content,
+                sharedBy: m.content?.sharedBy || null
+              },
               isFavorite: m.isFavorite,
               caption: m.content?.caption || '',
               comments: m.content?.comments || [],
