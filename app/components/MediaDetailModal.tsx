@@ -116,6 +116,7 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
   const [showSharedWithModal, setShowSharedWithModal] = useState(false);
   const [availableFriends, setAvailableFriends] = useState<SharedUser[]>([]);
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
+  const [showFriendSelection, setShowFriendSelection] = useState(false);
 
   useEffect(() => {
     if (visible && flatListRef.current && mediaList.length > 0) {
@@ -764,108 +765,125 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
     return 'No date available';
   };
 
-  // Update the SharedWithModal component
-  const SharedWithModal = () => {
+  const renderFriendSelection = () => (
+    <View style={styles.modalContent}>
+      <View style={styles.sharedWithModalHeader}>
+        <TouchableOpacity 
+          style={styles.backButton}
+          onPress={() => setShowFriendSelection(false)}
+        >
+          <Ionicons name="arrow-back" size={24} color="#222" />
+        </TouchableOpacity>
+        <Text style={styles.sharedWithModalTitle}>Select Friends</Text>
+        <TouchableOpacity 
+          onPress={() => setShowSharedWithModal(false)}
+          style={styles.sharedWithModalCloseButton}
+        >
+          <Ionicons name="close" size={24} color="#222" />
+        </TouchableOpacity>
+      </View>
+      
+      <ScrollView style={styles.sharedWithModalList}>
+        <View style={styles.friendsList}>
+          {availableFriends.map((friend) => (
+            <TouchableOpacity
+              key={friend.id}
+              style={[
+                styles.friendItem,
+                selectedFriends.includes(friend.id) && styles.selectedFriend
+              ]}
+              onPress={() => {
+                setSelectedFriends(prev => 
+                  prev.includes(friend.id)
+                    ? prev.filter(id => id !== friend.id)
+                    : [...prev, friend.id]
+                );
+              }}
+            >
+              {friend.photoURL ? (
+                <Image 
+                  source={{ uri: friend.photoURL }} 
+                  style={styles.friendAvatar}
+                />
+              ) : (
+                <View style={styles.friendAvatarPlaceholder}>
+                  <Ionicons name="person" size={20} color="#8E8E93" />
+                </View>
+              )}
+              <Text style={styles.friendName}>
+                {friend.displayName || 'Unknown User'}
+              </Text>
+              {selectedFriends.includes(friend.id) && (
+                <Ionicons name="checkmark-circle" size={24} color={COLORS.accent} />
+              )}
+            </TouchableOpacity>
+          ))}
+        </View>
+        {selectedFriends.length > 0 && (
+          <TouchableOpacity
+            style={styles.shareButton}
+            onPress={handleShareWithFriends}
+          >
+            <Text style={styles.shareButtonText}>
+              Share with Selected Friends
+            </Text>
+          </TouchableOpacity>
+        )}
+      </ScrollView>
+    </View>
+  );
+
+  const renderSharedWithList = () => {
     const currentUsers = sharedUsers[currentMedia?.id] || [];
     const isOwner = currentMedia?.userId === currentUserId;
     
     return (
-      <Modal
-        visible={showSharedWithModal}
-        animationType="slide"
-        transparent={true}
-        onRequestClose={() => setShowSharedWithModal(false)}
-      >
-        <View style={styles.sharedWithModalContainer}>
-          <View style={[styles.sharedWithModalContent, { paddingBottom: insets.bottom || 20 }]}>
-            <View style={styles.sharedWithModalHeader}>
-              <Text style={styles.sharedWithModalTitle}>Shared With</Text>
-              <TouchableOpacity 
-                onPress={() => setShowSharedWithModal(false)}
-                style={styles.sharedWithModalCloseButton}
-              >
-                <Ionicons name="close" size={24} color="#222" />
-              </TouchableOpacity>
-            </View>
-            
-            <ScrollView style={styles.sharedWithModalList}>
-              {isOwner && (
-                <View style={styles.friendSelectionContainer}>
-                  <Text style={styles.sectionTitle}>Share with Friends</Text>
-                  <View style={styles.friendsList}>
-                    {availableFriends.map((friend) => (
-                      <TouchableOpacity
-                        key={friend.id}
-                        style={[
-                          styles.friendItem,
-                          selectedFriends.includes(friend.id) && styles.selectedFriend
-                        ]}
-                        onPress={() => {
-                          setSelectedFriends(prev => 
-                            prev.includes(friend.id)
-                              ? prev.filter(id => id !== friend.id)
-                              : [...prev, friend.id]
-                          );
-                        }}
-                      >
-                        {friend.photoURL ? (
-                          <Image 
-                            source={{ uri: friend.photoURL }} 
-                            style={styles.friendAvatar}
-                          />
-                        ) : (
-                          <View style={styles.friendAvatarPlaceholder}>
-                            <Ionicons name="person" size={20} color="#8E8E93" />
-                          </View>
-                        )}
-                        <Text style={styles.friendName}>
-                          {friend.displayName || 'Unknown User'}
-                        </Text>
-                        {selectedFriends.includes(friend.id) && (
-                          <Ionicons name="checkmark-circle" size={24} color={COLORS.accent} />
-                        )}
-                      </TouchableOpacity>
-                    ))}
-                  </View>
-                  {selectedFriends.length > 0 && (
-                    <TouchableOpacity
-                      style={styles.shareButton}
-                      onPress={handleShareWithFriends}
-                    >
-                      <Text style={styles.shareButtonText}>
-                        Share with Selected Friends
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              )}
-              
-              {currentUsers.length > 0 && (
-                <>
-                  <Text style={styles.sectionTitle}>Currently Shared With</Text>
-                  {currentUsers.map((user) => (
-                    <View key={user.id} style={styles.sharedWithModalItem}>
-                      {user.photoURL ? (
-                        <Image 
-                          source={{ uri: user.photoURL }} 
-                          style={styles.sharedWithModalAvatar}
-                        />
-                      ) : (
-                        <View style={styles.sharedWithModalAvatarPlaceholder}>
-                          <Ionicons name="person" size={20} color="#8E8E93" />
-                        </View>
-                      )}
-                      <Text style={styles.sharedWithModalName}>
-                        {user.displayName || 'Unknown User'}
-                      </Text>
-                    </View>
-                  ))}
-                </>
-              )}
-            </ScrollView>
-          </View>
+      <View style={styles.modalContent}>
+        <View style={styles.sharedWithModalHeader}>
+          <Text style={styles.sharedWithModalTitle}>Shared With</Text>
+          <TouchableOpacity 
+            onPress={() => setShowSharedWithModal(false)}
+            style={styles.sharedWithModalCloseButton}
+          >
+            <Ionicons name="close" size={24} color="#222" />
+          </TouchableOpacity>
         </View>
-      </Modal>
+        
+        <ScrollView style={styles.sharedWithModalList}>
+          {isOwner && (
+            <TouchableOpacity
+              style={styles.friendSelectionContainer}
+              onPress={() => setShowFriendSelection(true)}
+            >
+              <Text style={styles.sectionTitle}>Share with Friends</Text>
+              <Ionicons name="chevron-forward" size={24} color="#222" />
+            </TouchableOpacity>
+          )}
+          
+          {currentUsers.length > 0 && (
+            <>
+              <Text style={styles.sectionTitle}>Currently Shared With</Text>
+              {currentUsers.map((user) => (
+                <View key={user.id} style={styles.sharedWithModalItem}>
+                  {user.photoURL ? (
+                    <Image 
+                      source={{ uri: user.photoURL }} 
+                      style={styles.sharedWithModalAvatar}
+                    />
+                  ) : (
+                    <View style={styles.sharedWithModalAvatarPlaceholder}>
+                      <Ionicons name="person" size={20} color="#8E8E93" />
+                    </View>
+                  )}
+                  <Text style={styles.sharedWithModalName}>
+                    {user.displayName || 'Unknown User'}
+                  </Text>
+                </View>
+              ))}
+            </>
+          )}
+        </ScrollView>
+      </View>
     );
   };
 
@@ -899,7 +917,22 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
           onScrollToIndexFailed={handleScrollToIndexFailed}
         />
       </View>
-      <SharedWithModal />
+
+      <Modal
+        visible={showSharedWithModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => {
+          setShowFriendSelection(false);
+          setShowSharedWithModal(false);
+        }}
+      >
+        <View style={styles.sharedWithModalContainer}>
+          <View style={[styles.sharedWithModalContent, { paddingBottom: insets.bottom || 20 }]}>
+            {showFriendSelection ? renderFriendSelection() : renderSharedWithList()}
+          </View>
+        </View>
+      </Modal>
     </Modal>
   );
 };
@@ -1160,7 +1193,11 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   friendSelectionContainer: {
-    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 16,
+    paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
@@ -1221,6 +1258,9 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: COLORS.accent,
     borderStyle: 'dashed',
+  },
+  modalContent: {
+    flex: 1,
   },
 });
 
