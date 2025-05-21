@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import { addDoc, collection, Timestamp, updateDoc } from 'firebase/firestore';
 import React, { useEffect, useRef, useState } from 'react';
@@ -36,12 +37,68 @@ interface AddMediaModalProps {
   onSuccess?: () => void;
 }
 
+// Improved image picker options with better quality/size balance
+const getImagePickerOptions = (type: 'photo' | 'video'): ImagePicker.ImagePickerOptions => {
+  return {
+    mediaTypes: type === 'photo' 
+      ? ImagePicker.MediaTypeOptions.Images
+      : ImagePicker.MediaTypeOptions.Videos,
+    allowsEditing: false,
+    quality: 0.8, // Higher quality (0.8 instead of 0.5)
+    base64: true,
+    exif: true,
+  };
+};
+
+// Helper to create a thumbnail with reasonable quality
+const createThumbnail = async (uri: string): Promise<string | undefined> => {
+  try {
+    // Use expo-image-manipulator in a real implementation
+    // For now, we'll just return the original URI
+    return uri;
+  } catch (error) {
+    console.log('Error creating thumbnail:', error);
+    return undefined;
+  }
+};
+
+// Function to safely extract EXIF date from image metadata
+const extractExifDate = (exif: any): string | undefined => {
+  if (!exif) return undefined;
+  
+  // Try different EXIF date fields in order of preference
+  const dateFields = [
+    'DateTimeOriginal',
+    'DateTime',
+    'DateTimeDigitized',
+    'creationTime',
+    'modificationTime'
+  ];
+  
+  for (const field of dateFields) {
+    if (exif[field]) {
+      try {
+        return exif[field]; // Just return the first valid date we find
+      } catch (e) {
+        console.log(`Error parsing EXIF date field ${field}:`, e);
+      }
+    }
+  }
+  
+  return undefined;
+};
+
 const AddMediaModal: React.FC<AddMediaModalProps> = ({ visible, onClose, onSuccess }) => {
   const [mediaType, setMediaType] = useState<'photo' | 'video'>('photo');
   const [selectedMedia, setSelectedMedia] = useState<{
     uri: string;
     type: 'photo' | 'video';
     base64?: string;
+    width?: number;
+    height?: number;
+    aspectRatio?: number;
+    exifDate?: string;
+    thumbnail?: string;
   } | null>(null);
   const [caption, setCaption] = useState('');
   const [isUploading, setIsUploading] = useState(false);
@@ -84,24 +141,34 @@ const AddMediaModal: React.FC<AddMediaModalProps> = ({ visible, onClose, onSucce
     }
     
     try {
-      const options: ImagePicker.ImagePickerOptions = {
-        mediaTypes: type === 'photo' 
-          ? ImagePicker.MediaTypeOptions.Images
-          : ImagePicker.MediaTypeOptions.Videos,
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.3, // Lower quality to reduce size
-        base64: true,
-      };
-
-      const result = await ImagePicker.launchImageLibraryAsync(options);
+      const result = await ImagePicker.launchImageLibraryAsync(getImagePickerOptions(type));
       
       if (!result.canceled && result.assets[0]) {
         const asset = result.assets[0];
+        
+        const imageWidth = asset.width;
+        const imageHeight = asset.height;
+        const aspectRatio = imageHeight / imageWidth;
+        
+        // Extract EXIF date using helper function
+        const exifDate = extractExifDate(asset.exif);
+        
+        if (exifDate) {
+          console.log('EXIF date extracted successfully:', exifDate);
+        }
+        
+        // Create a thumbnail for the selected media
+        const thumbnailUri = await createThumbnail(asset.uri);
+        
         setSelectedMedia({
           uri: asset.uri,
           type: type,
-          base64: asset.base64 || undefined
+          base64: asset.base64 || undefined,
+          width: imageWidth,
+          height: imageHeight,
+          aspectRatio: aspectRatio,
+          exifDate: exifDate,
+          thumbnail: thumbnailUri || undefined
         });
         setMediaType(type);
       }
@@ -120,20 +187,34 @@ const AddMediaModal: React.FC<AddMediaModalProps> = ({ visible, onClose, onSucce
     }
     
     try {
-      const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 0.3, // Lower quality to reduce size
-        base64: true,
-      });
+      const result = await ImagePicker.launchCameraAsync(getImagePickerOptions('photo'));
       
       if (!result.canceled && result.assets[0]) {
         const asset = result.assets[0];
+        
+        const imageWidth = asset.width;
+        const imageHeight = asset.height;
+        const aspectRatio = imageHeight / imageWidth;
+        
+        // Extract EXIF date using helper function
+        const exifDate = extractExifDate(asset.exif);
+        
+        if (exifDate) {
+          console.log('Camera EXIF date extracted successfully:', exifDate);
+        }
+        
+        // Create a thumbnail for the captured photo
+        const thumbnailUri = await createThumbnail(asset.uri);
+        
         setSelectedMedia({
           uri: asset.uri,
           type: 'photo',
-          base64: asset.base64 || undefined
+          base64: asset.base64 || undefined,
+          width: imageWidth,
+          height: imageHeight,
+          aspectRatio: aspectRatio,
+          exifDate: exifDate,
+          thumbnail: thumbnailUri || undefined
         });
         setMediaType('photo');
       }
@@ -143,51 +224,65 @@ const AddMediaModal: React.FC<AddMediaModalProps> = ({ visible, onClose, onSucce
     }
   };
 
+  // Simplified file size check
+  const checkFileSize = async (uri: string): Promise<void> => {
+    if (uri.startsWith('file://')) {
+      try {
+        const fileInfo = await FileSystem.getInfoAsync(uri);
+        if (fileInfo.exists) {
+          // Just log that we checked, no complex processing
+          console.log(`File exists at: ${uri}`);
+        }
+      } catch (error) {
+        console.error('Error checking file:', error);
+      }
+    }
+  };
+
   const uploadMedia = async () => {
     if (!selectedMedia || !auth.currentUser) {
       Alert.alert('Error', 'No media selected or user not logged in');
       return;
     }
-
+    
     setIsUploading(true);
-
+    
     try {
-      // Create base64 data URL
-      const base64Data = selectedMedia.base64;
-      if (!base64Data) {
-        throw new Error('No base64 data available');
-      }
-
-      // Store image with thumbnail only in Firestore to avoid size limits
-      const docRef = await addDoc(collection(db, 'memories'), {
-        type: selectedMedia.type === 'photo' ? 'photo' : 'reel',
-        date: Timestamp.now(),
-        isFavorite: false,
+      // Simple file check
+      await checkFileSize(selectedMedia.uri);
+      
+      // Create the memory document with simpler structure
+      const memoryRef = await addDoc(collection(db, 'memories'), {
         userId: auth.currentUser.uid,
-        createdAt: Timestamp.now(),
-        // Create a proper content object with embedded thumbnail
+        type: selectedMedia.type,
+        caption: caption,
+        isFavorite: false,
         content: {
-          uri: `data:image/jpeg;base64,${base64Data.substring(0, 100)}...`,
-          caption: caption,
-          hasFullImage: false, // We're not using the fullImageData approach anymore
-        }
+          uri: selectedMedia.uri,
+          thumbnail: selectedMedia.uri, // Use same URI for thumbnail
+          width: selectedMedia.width,
+          height: selectedMedia.height,
+          aspectRatio: selectedMedia.aspectRatio,
+          exifDate: selectedMedia.exifDate
+        },
+        date: Timestamp.now(),
+        createdAt: Timestamp.now()
       });
       
-      // Store a thumbnail version only, but with enough quality to display well
-      const truncatedBase64 = base64Data.length > 700000 
-        ? base64Data.substring(0, 700000) // Limit to ~700KB to stay under Firestore's ~1MB limit
-        : base64Data;
-        
-      // Update the content with a usable thumbnail and memoryId
-      await updateDoc(docRef, {
-        'content.thumbnail': `data:image/jpeg;base64,${truncatedBase64}`,
-        'content.memoryId': docRef.id,
+      console.log('Media uploaded successfully with ID:', memoryRef.id);
+      
+      // Update with just the memory ID
+      await updateDoc(memoryRef, {
+        'content.memoryId': memoryRef.id
       });
-
-      Alert.alert('Success', 'Media uploaded successfully!');
+      
       resetForm();
-      if (onSuccess) onSuccess();
+      
+      if (onSuccess) {
+        onSuccess();
+      }
       onClose();
+      
     } catch (error) {
       console.error('Error uploading media:', error);
       Alert.alert('Upload Failed', 'There was an error uploading your media. Please try again.');
@@ -246,11 +341,17 @@ const AddMediaModal: React.FC<AddMediaModalProps> = ({ visible, onClose, onSucce
               showsVerticalScrollIndicator={false}
             >
               {selectedMedia ? (
-                <View style={styles.mediaPreviewContainer}>
+                <View style={[
+                  styles.mediaPreviewContainer,
+                  selectedMedia.aspectRatio ? {
+                    height: undefined, 
+                    aspectRatio: 1 / selectedMedia.aspectRatio
+                  } : null
+                ]}>
                   <Image 
                     source={{ uri: selectedMedia.uri }} 
                     style={styles.mediaPreview} 
-                    resizeMode="cover" 
+                    resizeMode="contain" 
                   />
                   <TouchableOpacity 
                     style={styles.removeMediaButton}
@@ -409,14 +510,20 @@ const styles = StyleSheet.create({
   mediaPreviewContainer: {
     position: 'relative',
     width: '100%',
-    height: 250,
+    minHeight: 200,
+    maxHeight: 400,
     borderRadius: 16,
     overflow: 'hidden',
     marginBottom: 20,
+    backgroundColor: '#fff',
+    justifyContent: 'center',
+    alignItems: 'center'
   },
   mediaPreview: {
     width: '100%',
     height: '100%',
+    borderWidth: 0,
+    backgroundColor: 'transparent'
   },
   removeMediaButton: {
     position: 'absolute',

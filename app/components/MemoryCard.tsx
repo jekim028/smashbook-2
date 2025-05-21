@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Dimensions, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Dimensions, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { getLinkMetadata } from '../utils/linkPreview';
+// Temporarily disable image caching
+// import { getCachedImageUri } from '../utils/imageCache';
 
 interface MemoryCardProps {
   type: 'photo' | 'note' | 'voice' | 'text' | 'reel' | 'tiktok' | 'restaurant' | 'location' | 'link';
@@ -40,32 +42,33 @@ const MemoryCard: React.FC<MemoryCardProps> = ({
   style,
 }) => {
   const [linkMetadata, setLinkMetadata] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(false);
   const [fullImageUri, setFullImageUri] = useState<string | null>(null);
+  // const [cachedUri, setCachedUri] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
     if (type === 'link' && content?.url && !content.previewImage) {
       fetchLinkMetadata();
     }
     
-    // We don't need to fetch the full image anymore as we're using thumbnails
-    // directly stored in the content object
-    if (content?.thumbnail) {
-      setFullImageUri(content.thumbnail);
-    }
+    // Simplified image loading
+    const imageUri = content?.thumbnail || content?.uri || null;
+    setFullImageUri(imageUri);
+    
+    // Reset states when content changes
+    setIsLoading(true);
+    setHasError(false);
   }, [type, content]);
 
   const fetchLinkMetadata = async () => {
     if (!content.url) return;
     
-    setIsLoading(true);
     try {
       const metadata = await getLinkMetadata(content.url);
       setLinkMetadata(metadata);
     } catch (error) {
       console.error('Error fetching link metadata:', error);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -94,114 +97,107 @@ const MemoryCard: React.FC<MemoryCardProps> = ({
     }
   };
 
-  const renderContent = () => {
-    switch (type) {
-      case 'photo':
-      case 'reel':
-      case 'tiktok':
-        if (!content) {
-          return (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color={COLORS.accent} />
-              <Text style={styles.loadingText}>Loading image...</Text>
-            </View>
-          );
-        }
+  const handleImageLoad = () => {
+    setIsLoading(false);
+  };
+
+  const handleImageError = () => {
+    setIsLoading(false);
+    setHasError(true);
+  };
+
+  const renderMediaContent = () => {
+    // Get the best image source directly
+    const imageUri = content?.thumbnail || content?.uri || '';
+    
+    return (
+      <View style={styles.mediaContentWrapper}>
+        <Image 
+          source={{ uri: imageUri }} 
+          style={styles.image}
+          resizeMode="cover"
+        />
         
-        const imageUri = content.thumbnail || content.uri || '';
-        return (
-          <>
-            {isLoading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color={COLORS.accent} />
-              </View>
-            ) : (
-              <Image 
-                source={{ uri: imageUri }} 
-                style={styles.image}
-                resizeMode="cover"
-              />
-            )}
-            <View style={styles.mediaOverlay}>
-              {type === 'reel' && <Ionicons name="logo-instagram" size={20} color={COLORS.card} />}
-              {type === 'tiktok' && <Ionicons name="logo-tiktok" size={20} color={COLORS.card} />}
-              {content?.duration && (
-                <Text style={styles.duration}>{content.duration}</Text>
-              )}
-            </View>
-          </>
-        );
-      case 'voice':
-        return (
-          <View style={styles.voiceContainer}>
-            <Ionicons name="mic-outline" size={32} color={COLORS.accent} />
-            <Text style={styles.voiceDuration}>{content.duration}</Text>
+        {/* Media type indicators */}
+        {type === 'reel' && (
+          <View style={styles.typeIndicator}>
+            <Ionicons name="logo-instagram" size={20} color="#fff" />
           </View>
-        );
-      case 'text':
-        return (
-          <View style={styles.textContainer}>
-            <Text style={styles.sender}>{content.sender}</Text>
-            <Text style={styles.messageText}>{content.text}</Text>
+        )}
+        
+        {type === 'tiktok' && (
+          <View style={styles.typeIndicator}>
+            <Ionicons name="logo-tiktok" size={20} color="#fff" />
           </View>
-        );
-      case 'restaurant':
-        return (
-          <View style={styles.restaurantContainer}>
-            <Ionicons name="restaurant-outline" size={32} color={COLORS.accent} />
-            <Text style={styles.restaurantName}>{content.name}</Text>
-            <View style={styles.ratingContainer}>
-              <Ionicons name="star" size={16} color={COLORS.accent} />
-              <Text style={styles.rating}>{content.rating}</Text>
-            </View>
-          </View>
-        );
-      case 'location':
-        return (
-          <View style={styles.locationContainer}>
-            <Ionicons name="location-outline" size={32} color={COLORS.accent} />
-            <Text style={styles.locationName}>{content.name}</Text>
-          </View>
-        );
-      case 'link':
-        return (
-          <View style={styles.linkContainer}>
-            {isLoading ? (
-              <View style={styles.loadingContainer}>
-                <ActivityIndicator size="small" color={COLORS.accent} />
-              </View>
-            ) : (content.previewImage || linkMetadata?.image) ? (
-              <Image 
-                source={{ uri: content.previewImage || linkMetadata?.image }} 
-                style={styles.linkPreviewImage}
-                resizeMode="cover"
-              />
-            ) : (
-              <View style={styles.linkIconContainer}>
-                <Ionicons name="link-outline" size={32} color={COLORS.accent} />
-              </View>
-            )}
-            <Text style={styles.linkTitle} numberOfLines={1}>
-              {content.title || linkMetadata?.title || 'Link'}
-            </Text>
-            <Text style={styles.linkUrl} numberOfLines={1}>
-              {content.url}
-            </Text>
-            {(content.description || linkMetadata?.description) && (
-              <Text style={styles.linkDescription} numberOfLines={2}>
-                {content.description || linkMetadata?.description}
-              </Text>
-            )}
-          </View>
-        );
-      default:
-        return (
-          <View style={styles.iconContainer}>
-            <Ionicons name={getIcon()} size={32} color={COLORS.accent} />
-            <Text style={styles.text}>{content.text || content.title || type}</Text>
-          </View>
-        );
+        )}
+      </View>
+    );
+  };
+
+  const renderLinkPreview = () => {
+    return (
+      <View style={styles.linkContainer}>
+        <View style={styles.linkIconContainer}>
+          <Ionicons name="link-outline" size={32} color={COLORS.accent} />
+        </View>
+        <Text style={styles.linkTitle} numberOfLines={1}>
+          {content?.title || 'Link'}
+        </Text>
+        <Text style={styles.linkUrl} numberOfLines={1}>
+          {content?.url}
+        </Text>
+      </View>
+    );
+  };
+
+  const renderContent = () => {
+    // For photo/video content
+    if (['photo', 'reel', 'tiktok'].includes(type)) {
+      return renderMediaContent();
     }
+    
+    // For link content
+    if (type === 'link') {
+      return renderLinkPreview();
+    }
+    
+    // For notes, voice, text content
+    if (['note', 'voice', 'text'].includes(type)) {
+      return (
+        <View style={styles.iconContainer}>
+          <Ionicons name={getIcon()} size={32} color={COLORS.accent} />
+          <Text style={styles.text}>{content?.text || content?.title || type}</Text>
+        </View>
+      );
+    }
+    
+    // For restaurant
+    if (type === 'restaurant') {
+      return (
+        <View style={styles.iconContainer}>
+          <Ionicons name="restaurant-outline" size={32} color={COLORS.accent} />
+          <Text style={styles.text}>{content?.name || 'Restaurant'}</Text>
+        </View>
+      );
+    }
+    
+    // For location
+    if (type === 'location') {
+      return (
+        <View style={styles.iconContainer}>
+          <Ionicons name="location-outline" size={32} color={COLORS.accent} />
+          <Text style={styles.text}>{content?.name || 'Location'}</Text>
+        </View>
+      );
+    }
+    
+    // Default fallback
+    return (
+      <View style={styles.iconContainer}>
+        <Ionicons name={getIcon()} size={32} color={COLORS.accent} />
+        <Text style={styles.text}>{type}</Text>
+      </View>
+    );
   };
 
   return (
@@ -256,6 +252,8 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     borderRadius: 20,
+    borderWidth: 0,
+    backgroundColor: 'transparent'
   },
   iconContainer: {
     flex: 1,
@@ -423,6 +421,50 @@ const styles = StyleSheet.create({
     marginTop: 8,
     color: COLORS.secondaryText,
     fontSize: 14,
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.lightAccent,
+    borderRadius: 20,
+    zIndex: 1,
+  },
+  linkPreviewContainer: {
+    position: 'relative',
+    width: '100%',
+    height: 100,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 8,
+  },
+  linkLoadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.lightAccent,
+    zIndex: 1,
+  },
+  mediaContentWrapper: {
+    position: 'relative',
+    width: '100%',
+    height: '100%',
+  },
+  typeIndicator: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    padding: 4,
+    borderRadius: 12,
+    backgroundColor: 'rgba(0,0,0,0.5)',
   },
 });
 

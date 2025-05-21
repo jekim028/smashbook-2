@@ -8,16 +8,33 @@
     "scheme": "smashbook2",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": false,
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.esi.smashbook2"
+      "bundleIdentifier": "com.esi.smashbook2",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Allow Smashbook to access your camera to take photos for your memories",
+        "NSPhotoLibraryUsageDescription": "Allow Smashbook to access your photos to add them to your memories",
+        "NSPhotoLibraryAddUsageDescription": "Allow Smashbook to save photos to your photo library"
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -26,40 +43,8 @@
     },
     "plugins": [
       "expo-router",
-      [
-        "expo-splash-screen",
-        {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
-        }
-      ],
-      [
-        "expo-share-extension",
-        {
-          "activationRules": [
-            {
-              "type": "url",
-              "max": 1
-            },
-            {
-              "type": "text"
-            },
-            {
-              "type": "image",
-              "max": 1
-            }
-          ],
-          "backgroundColor": {
-            "red": 253,
-            "green": 252,
-            "blue": 248,
-            "alpha": 1.0
-          },
-          "height": 300
-        }
-      ]
+      "expo-image-picker",
+      "expo-file-system"
     ],
     "experiments": {
       "typedRoutes": true
