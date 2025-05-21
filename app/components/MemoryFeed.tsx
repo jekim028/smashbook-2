@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { collection, doc, onSnapshot, query, Timestamp, updateDoc, where } from 'firebase/firestore';
+import { collection, doc, DocumentData, getDoc, onSnapshot, query, Timestamp, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Animated, Dimensions, FlatList, Linking, SafeAreaView, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { auth, db } from '../../constants/Firebase';
@@ -237,11 +237,36 @@ export const MemoryFeed: React.FC = () => {
     );
 
     const sharedMemoriesUnsubscribe = onSnapshot(sharedQ,
-      (snapshot) => {
+      async (snapshot) => {
         const sharedMemoryList: Memory[] = [];
-        snapshot.forEach((doc) => {
-          sharedMemoryList.push({ id: doc.id, ...doc.data() } as Memory);
-        });
+        
+        // Process each shared memory
+        for (const docSnapshot of snapshot.docs) {
+          const data = docSnapshot.data();
+          const memory = { id: docSnapshot.id, ...data } as Memory;
+          
+          // If this is a shared memory, get the user info of who shared it
+          if (data.userId) {
+            try {
+              const userDocRef = doc(db, 'users', data.userId);
+              const userDoc = await getDoc(userDocRef);
+              if (userDoc.exists()) {
+                const userData = userDoc.data() as DocumentData;
+                memory.content = {
+                  ...memory.content,
+                  sharedBy: {
+                    photoURL: userData.photoURL || null,
+                    displayName: userData.displayName || null
+                  }
+                };
+              }
+            } catch (error) {
+              console.error('Error fetching user info for shared memory:', error);
+            }
+          }
+          
+          sharedMemoryList.push(memory);
+        }
 
         // Combine with existing memories and sort
         setMemories(prevMemories => {
@@ -502,11 +527,36 @@ export const MemoryFeed: React.FC = () => {
     );
 
     const sharedMemoriesUnsubscribe = onSnapshot(sharedQ,
-      (snapshot) => {
+      async (snapshot) => {
         const sharedMemoryList: Memory[] = [];
-        snapshot.forEach((doc) => {
-          sharedMemoryList.push({ id: doc.id, ...doc.data() } as Memory);
-        });
+        
+        // Process each shared memory
+        for (const docSnapshot of snapshot.docs) {
+          const data = docSnapshot.data();
+          const memory = { id: docSnapshot.id, ...data } as Memory;
+          
+          // If this is a shared memory, get the user info of who shared it
+          if (data.userId) {
+            try {
+              const userDocRef = doc(db, 'users', data.userId);
+              const userDoc = await getDoc(userDocRef);
+              if (userDoc.exists()) {
+                const userData = userDoc.data() as DocumentData;
+                memory.content = {
+                  ...memory.content,
+                  sharedBy: {
+                    photoURL: userData.photoURL || null,
+                    displayName: userData.displayName || null
+                  }
+                };
+              }
+            } catch (error) {
+              console.error('Error fetching user info for shared memory:', error);
+            }
+          }
+          
+          sharedMemoryList.push(memory);
+        }
 
         // Combine with existing memories and sort
         setMemories(prevMemories => {

@@ -33,6 +33,8 @@ const COLORS = {
   lightAccent: '#FFF0E6', // Lighter version of accent
 };
 
+const SHARED_BUBBLE_SIZE = 32;
+
 const MemoryCard: React.FC<MemoryCardProps> = ({
   type,
   content,
@@ -46,6 +48,7 @@ const MemoryCard: React.FC<MemoryCardProps> = ({
   // const [cachedUri, setCachedUri] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
+  const [sharedBy, setSharedBy] = useState<{ photoURL: string | null, displayName: string | null } | null>(null);
 
   useEffect(() => {
     console.log('MemoryCard useEffect - type:', type, 'content:', content);
@@ -64,6 +67,14 @@ const MemoryCard: React.FC<MemoryCardProps> = ({
     // Reset states when content changes
     setIsLoading(true);
     setHasError(false);
+
+    // Set shared by info if available
+    if (content?.sharedBy) {
+      setSharedBy({
+        photoURL: content.sharedBy.photoURL || null,
+        displayName: content.sharedBy.displayName || null
+      });
+    }
   }, [type, content]);
 
   const fetchLinkMetadata = async () => {
@@ -236,6 +247,22 @@ const MemoryCard: React.FC<MemoryCardProps> = ({
           color={isFavorite ? COLORS.favorite : COLORS.secondaryText} 
         />
       </TouchableOpacity>
+
+      {/* Shared by bubble */}
+      {sharedBy && (
+        <View style={styles.sharedByContainer}>
+          {sharedBy.photoURL ? (
+            <Image 
+              source={{ uri: sharedBy.photoURL }} 
+              style={styles.sharedByImage}
+            />
+          ) : (
+            <View style={styles.sharedByPlaceholder}>
+              <Ionicons name="person" size={16} color={COLORS.secondaryText} />
+            </View>
+          )}
+        </View>
+      )}
     </TouchableOpacity>
   );
 };
@@ -482,6 +509,39 @@ const styles = StyleSheet.create({
     padding: 4,
     borderRadius: 12,
     backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  sharedByContainer: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    width: SHARED_BUBBLE_SIZE,
+    height: SHARED_BUBBLE_SIZE,
+    borderRadius: SHARED_BUBBLE_SIZE / 2,
+    backgroundColor: COLORS.card,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: COLORS.card,
+  },
+  sharedByImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: SHARED_BUBBLE_SIZE / 2,
+  },
+  sharedByPlaceholder: {
+    width: '100%',
+    height: '100%',
+    borderRadius: SHARED_BUBBLE_SIZE / 2,
+    backgroundColor: COLORS.lightAccent,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
 
