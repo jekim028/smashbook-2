@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Dimensions,
@@ -200,30 +200,40 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
 
   // Add function to fetch available friends
   const fetchAvailableFriends = async () => {
-    if (!currentUserId) return;
+    if (!currentUserId || !currentMedia) return;
     
     try {
-      const userDoc = await getDoc(doc(db, 'users', currentUserId));
-      if (userDoc.exists()) {
-        const userData = userDoc.data();
-        const friendIds = userData.friends || [];
+      // Get current shared users
+      const currentSharedWith = currentMedia.sharedWith || [];
+      
+      // Get user's friends from friendships collection
+      const friendsRef = collection(db, 'friendships');
+      const q = query(friendsRef, where('userId', '==', currentUserId));
+      const querySnapshot = await getDocs(q);
+      
+      const friendPromises = querySnapshot.docs.map(async (docSnapshot) => {
+        const friendId = docSnapshot.data().friendId;
         
-        const friendPromises = friendIds.map(async (friendId: string) => {
-          const friendDoc = await getDoc(doc(db, 'users', friendId));
-          if (friendDoc.exists()) {
-            const friendData = friendDoc.data();
-            return {
-              id: friendId,
-              photoURL: friendData.photoURL || null,
-              displayName: friendData.displayName || null,
-            };
-          }
+        // Skip if friend is already shared with
+        if (currentSharedWith.includes(friendId)) {
           return null;
-        });
+        }
         
-        const friends = (await Promise.all(friendPromises)).filter(Boolean);
-        setAvailableFriends(friends);
-      }
+        const friendDoc = await getDoc(doc(db, 'users', friendId));
+        if (friendDoc.exists()) {
+          const friendData = friendDoc.data();
+          return {
+            id: friendId,
+            photoURL: friendData.photoURL || null,
+            displayName: friendData.displayName || null,
+          } as SharedUser;
+        }
+        return null;
+      });
+      
+      const friends = (await Promise.all(friendPromises))
+        .filter((friend): friend is SharedUser => friend !== null);
+      setAvailableFriends(friends);
     } catch (error) {
       console.error('Error fetching friends:', error);
     }
