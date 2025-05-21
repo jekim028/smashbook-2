@@ -138,6 +138,34 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
     }
   }, [visible, reversedInitialIndex]);
 
+  // Add effect to scroll to current index when modal opens
+  useEffect(() => {
+    if (visible && flatListRef.current && mediaList.length > 0) {
+      // Small delay to ensure FlatList is ready
+      setTimeout(() => {
+        flatListRef.current?.scrollToIndex({
+          index: currentIndex,
+          animated: false,
+          viewPosition: 0.5
+        });
+      }, 100);
+    }
+  }, [visible, currentIndex, mediaList]);
+
+  // Add effect to handle shared with modal visibility
+  useEffect(() => {
+    if (!showSharedWithModal) {
+      // When shared with modal closes, ensure we're at the correct index
+      if (flatListRef.current) {
+        flatListRef.current?.scrollToIndex({
+          index: currentIndex,
+          animated: false,
+          viewPosition: 0.5
+        });
+      }
+    }
+  }, [showSharedWithModal, currentIndex]);
+
   useEffect(() => {
     // Log the data of the current media for debugging
     if (visible && __DEV__) {
@@ -269,6 +297,10 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
           [currentMedia.id]: newSharedUsers
         }));
       }
+
+      // Close both modals
+      setShowFriendSelection(false);
+      setShowSharedWithModal(false);
     } catch (error) {
       console.error('Error sharing memory:', error);
     }
