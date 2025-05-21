@@ -3,6 +3,7 @@ import { useNavigation } from '@react-navigation/native';
 import { collection, doc, getDoc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  Alert,
   Dimensions,
   FlatList,
   Image,
@@ -69,6 +70,7 @@ interface MediaDetailModalProps {
   onClose: () => void;
   onFavorite: (id: string) => void;
   currentUserId?: string;
+  onUpdate?: (updatedMedia: MediaItem) => void;
 }
 
 interface SharedUser {
@@ -90,6 +92,7 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
   onClose,
   onFavorite,
   currentUserId,
+  onUpdate,
 }) => {
   console.log('MediaDetailModal rendered with:', {
     visible,
@@ -411,6 +414,64 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
   // Get comments for a media item
   const getCommentsForMedia = (mediaId: string) => {
     return comments[mediaId] || [];
+  };
+
+  // Add function to handle unsharing with a friend
+  const handleUnshare = async (friendId: string, friendName: string) => {
+    if (!currentMedia || !currentUserId) return;
+    
+    // Show confirmation alert
+    Alert.alert(
+      'Remove User',
+      `Are you sure you want to remove ${friendName || 'this user'} from this memory?`,
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Remove',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const memoryRef = doc(db, 'memories', currentMedia.id);
+              const currentSharedWith = currentMedia.sharedWith || [];
+              const newSharedWith = currentSharedWith.filter(id => id !== friendId);
+              
+              await updateDoc(memoryRef, {
+                sharedWith: newSharedWith
+              });
+              
+              // Create updated media item
+              const updatedMedia = {
+                ...currentMedia,
+                sharedWith: newSharedWith
+              };
+
+              // Update local states
+              setSharedUsers(prev => ({
+                ...prev,
+                [currentMedia.id]: prev[currentMedia.id]?.filter(user => user.id !== friendId) || []
+              }));
+
+              // Update the mediaList item
+              const currentIndex = mediaList.findIndex(item => item.id === currentMedia.id);
+              if (currentIndex !== -1) {
+                mediaList[currentIndex] = updatedMedia;
+              }
+
+              // Notify parent component of the update
+              if (onUpdate) {
+                onUpdate(updatedMedia);
+              }
+
+            } catch (error) {
+              console.error('Error unsharing memory:', error);
+            }
+          }
+        }
+      ]
+    );
   };
 
   const renderItem = ({ item, index }: { item: MediaItem, index: number }) => {    
@@ -907,6 +968,14 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
                   <Text style={styles.sharedWithModalName}>
                     {user.displayName || 'Unknown User'}
                   </Text>
+                  {isOwner && (
+                    <TouchableOpacity
+                      style={styles.unshareButton}
+                      onPress={() => handleUnshare(user.id, user.displayName || 'Unknown User')}
+                    >
+                      <Ionicons name="close" size={24} color="#222" />
+                    </TouchableOpacity>
+                  )}
                 </View>
               ))}
             </>
@@ -1217,6 +1286,7 @@ const styles = StyleSheet.create({
     marginRight: 16,
   },
   sharedWithModalName: {
+    flex: 1,
     fontSize: 16,
     color: '#222',
     fontWeight: '500',
@@ -1290,6 +1360,9 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     flex: 1,
+  },
+  unshareButton: {
+    padding: 8,
   },
 });
 
