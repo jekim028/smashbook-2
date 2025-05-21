@@ -372,17 +372,29 @@ export const MemoryFeed: React.FC = () => {
   const handleMemoryPress = (memory: Memory) => {
     const mediaTypes = ['photo', 'video', 'link'];
     if (mediaTypes.includes(memory.type)) {
-      // Sort the array the same way we do for the MediaDetailModal
-      const sortedMedia = [...allMedia].sort((a, b) => {
-        const dateA = a.date.toDate().getTime();
-        const dateB = b.date.toDate().getTime();
-        return dateA - dateB; // oldest first
-      });
+      // Prepare the exact same sorted array as we'll use for the modal
+      const mediaItems = memories
+        .filter(m => ['photo', 'video', 'link'].includes(m.type))
+        .sort((a, b) => {
+          const dateA = a.date.toDate().getTime();
+          const dateB = b.date.toDate().getTime();
+          return dateA - dateB; // oldest to newest
+        });
       
-      // Find the index in the sorted array
-      const index = sortedMedia.findIndex(m => m.id === memory.id);
-      setMediaDetailIndex(index);
-      setIsMediaDetailVisible(true);
+      // Find the index of the clicked memory in the sorted array
+      const index = mediaItems.findIndex(m => m.id === memory.id);
+      
+      if (index !== -1) {
+        console.log(`Opening MediaDetailModal for memory ${memory.id} at index ${index} of ${mediaItems.length} items`);
+        
+        // Set the state and then show the modal with a small delay to ensure the state is updated
+        setMediaDetailIndex(index);
+        setTimeout(() => {
+          setIsMediaDetailVisible(true);
+        }, 50);
+      } else {
+        console.error('Memory not found in media list');
+      }
     } else {
       setSelectedMemory(memory);
       setIsMemoryOptionsModalVisible(true);
@@ -759,9 +771,11 @@ export const MemoryFeed: React.FC = () => {
 
         <MediaDetailModal
           visible={isMediaDetailVisible}
-          mediaList={allMedia
+          mediaList={memories
+            // Filter to include only media types
+            .filter(m => ['photo', 'video', 'link'].includes(m.type))
             // Sort from oldest (index 0) to newest (last index)
-            // This makes swiping right show newer content
+            // This ensures swiping left shows newer content and right shows older content
             .sort((a, b) => {
               const dateA = a.date.toDate().getTime();
               const dateB = b.date.toDate().getTime();
@@ -788,6 +802,19 @@ export const MemoryFeed: React.FC = () => {
           onClose={() => setIsMediaDetailVisible(false)}
           onFavorite={handleFavorite}
           currentUserId={auth.currentUser?.uid} // Add this prop
+          onUpdate={(updatedMedia) => {
+            // Update the memory in our local state if we can find it
+            const memoryToUpdate = memories.find(m => m.id === updatedMedia.id);
+            if (memoryToUpdate) {
+              // Only update the sharedWith field which is what changes in the modal
+              setMemories(prev => 
+                prev.map(m => m.id === updatedMedia.id 
+                  ? {...m, sharedWith: updatedMedia.sharedWith} 
+                  : m
+                )
+              );
+            }
+          }}
         />
       </View>
     </SafeAreaView>

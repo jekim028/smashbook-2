@@ -102,13 +102,8 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
     initialIndex
   });
 
-  // Reverse the media list for correct swipe direction - newest to oldest
-  const mediaList = [...originalMediaList].reverse();
-  
-  // Adjust initialIndex to match the reversed list
-  const reversedInitialIndex = originalMediaList.length - 1 - initialIndex;
-  
-  const [currentIndex, setCurrentIndex] = useState(reversedInitialIndex);
+  // Use the original media list and index directly - no reversal
+  const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [comment, setComment] = useState('');
   const [showCommentInput, setShowCommentInput] = useState(false);
   const [comments, setComments] = useState<{[key: string]: {text: string, timestamp: number}[]}>({});
@@ -116,7 +111,7 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
   
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-  const currentMedia = mediaList[currentIndex];
+  const currentMedia = originalMediaList[currentIndex];
   const [sharedUsers, setSharedUsers] = useState<{[key: string]: SharedUser[]}>({});
   const [showSharedWithModal, setShowSharedWithModal] = useState(false);
   const [availableFriends, setAvailableFriends] = useState<SharedUser[]>([]);
@@ -159,59 +154,74 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
     })
   ).current;
 
+  // Update the initialization approach to ensure the correct initial rendering
   useEffect(() => {
-    if (visible && flatListRef.current && mediaList.length > 0) {
-      // Small delay to ensure FlatList is ready
-      setTimeout(() => {
-        flatListRef.current?.scrollToIndex({
-          index: reversedInitialIndex,
-          animated: false,
-          viewPosition: 0.5
-        });
-      }, 100);
-    }
-  }, [visible, reversedInitialIndex, mediaList]);
+    // Only run this effect when the modal becomes visible
+    if (!visible) return;
 
-  // Add effect to update currentIndex when modal opens
-  useEffect(() => {
-    if (visible) {
-      setCurrentIndex(reversedInitialIndex);
-      // Small delay to ensure FlatList is ready
-      setTimeout(() => {
-        flatListRef.current?.scrollToIndex({
-          index: reversedInitialIndex,
-          animated: false,
-          viewPosition: 0.5
-        });
-      }, 100);
-    }
-  }, [visible, reversedInitialIndex]);
+    console.log(`Modal visible - target index: ${initialIndex}`);
+    
+    // Set current index immediately
+    setCurrentIndex(initialIndex);
+    
+    // Give the FlatList time to render before attempting to scroll
+    const timer = setTimeout(() => {
+      if (flatListRef.current) {
+        try {
+          console.log(`Scrolling FlatList to index ${initialIndex}`);
+          flatListRef.current.scrollToIndex({
+            index: initialIndex,
+            animated: false,
+            viewPosition: 0.5
+          });
+        } catch (error) {
+          console.error("Failed to scroll to index:", error);
+          
+          // Emergency fallback - try once more after a longer delay
+          setTimeout(() => {
+            try {
+              flatListRef.current?.scrollToIndex({
+                index: initialIndex,
+                animated: false,
+                viewPosition: 0.5
+              });
+            } catch (e) {
+              console.error("Failed final attempt to scroll:", e);
+            }
+          }, 300);
+        }
+      }
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, [visible, initialIndex]);
 
-  // Remove the other scroll-related effects and keep only the friend selection reset
+  // Add back the friend selection reset effect
   useEffect(() => {
     if (showSharedWithModal) {
       setShowFriendSelection(false);
     }
   }, [showSharedWithModal]);
 
+  // Update debugging log
   useEffect(() => {
-    // Log the data of the current media for debugging
     if (visible && __DEV__) {
-      const currentItem = mediaList[currentIndex];
+      const currentItem = originalMediaList[currentIndex];
       if (currentItem) {
         console.log('Current media content in modal:', {
           id: currentItem.id,
           type: currentItem.type,
+          index: currentIndex,
+          totalItems: originalMediaList.length,
           content: {
             uri: currentItem.content?.uri,
             title: currentItem.content?.title,
             caption: currentItem.content?.caption
-          },
-          sharedWith: currentItem.sharedWith
+          }
         });
       }
     }
-  }, [currentIndex, mediaList, visible]);
+  }, [currentIndex, originalMediaList, visible]);
 
   // Add function to fetch user data
   const fetchUserData = async (userId: string) => {
@@ -359,63 +369,98 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
     }
   };
 
-  // Handle end of scroll - update currentIndex with strict boundary checking
+  // Simplify and make the scroll handling more robust
   const handleMomentumScrollEnd = (e: any) => {
-    const offsetX = e.nativeEvent.contentOffset.x;
-    const newIndex = Math.round(offsetX / width);
+    if (!flatListRef.current) return;
     
-    // Only update if the index is valid and different
-    if (newIndex >= 0 && newIndex < mediaList.length && newIndex !== currentIndex) {
-      setCurrentIndex(newIndex);
+    const offsetX = e.nativeEvent.contentOffset.x;
+    const newIndex = Math.floor(offsetX / width + 0.5); // More accurate calculation
+    
+    // Ensure index is within bounds
+    if (newIndex >= 0 && newIndex < originalMediaList.length) {
+      if (newIndex !== currentIndex) {
+        console.log(`Scrolled to index ${newIndex}`);
+        setCurrentIndex(newIndex);
+      }
+    } else {
+      // If somehow we got an out-of-bounds index, correct it
+      const validIndex = Math.min(Math.max(0, newIndex), originalMediaList.length - 1);
+      setTimeout(() => {
+        flatListRef.current?.scrollToIndex({
+          index: validIndex,
+          animated: true
+        });
+        setCurrentIndex(validIndex);
+      }, 100);
     }
   };
 
-  // Handle failed scroll to index (out of bounds)
+  // Prevent scrolling beyond list boundaries with better bounce behavior
+  const handleScroll = (e: any) => {
+    // Only do heavy correction in extreme cases
+    // Most of the time, let the native bounce handle it
+    const offsetX = e.nativeEvent.contentOffset.x;
+    const velocity = e.nativeEvent.velocity?.x || 0;
+    
+    // First item - prevent over-scroll
+    if (offsetX < 0 && Math.abs(offsetX) > width / 2) {
+      console.log("Correcting overscroll at beginning");
+      flatListRef.current?.scrollToOffset({
+        offset: 0,
+        animated: true
+      });
+    }
+    
+    // Last item - prevent over-scroll
+    const maxOffset = (originalMediaList.length - 1) * width;
+    if (offsetX > maxOffset && offsetX - maxOffset > width / 2) {
+      console.log("Correcting overscroll at end");
+      flatListRef.current?.scrollToOffset({
+        offset: maxOffset,
+        animated: true
+      });
+    }
+  };
+
+  // Simplified handler for scroll-to-index failures
   const handleScrollToIndexFailed = (info: {
     index: number;
     highestMeasuredFrameIndex: number;
     averageItemLength: number;
   }) => {
-    // If index is out of bounds, just set to the nearest valid index
+    console.log(`Failed to scroll to index ${info.index}. Attempting recovery...`);
+    
+    // If index is out of bounds, use a valid index
     const validIndex = Math.min(
       Math.max(0, info.index),
-      mediaList.length - 1
+      originalMediaList.length - 1
     );
     
+    // Use a longer timeout to ensure rendering is complete
     setTimeout(() => {
       if (flatListRef.current) {
+        // First scroll to nearest valid rendered index
+        const nearestRenderedIndex = Math.min(validIndex, info.highestMeasuredFrameIndex);
+        
         flatListRef.current.scrollToIndex({
           animated: false,
-          index: validIndex
+          index: nearestRenderedIndex
         });
+        
+        // Then after a short delay, try scrolling to the actual target index
+        if (nearestRenderedIndex !== validIndex) {
+          setTimeout(() => {
+            flatListRef.current?.scrollToIndex({
+              animated: true,
+              index: validIndex
+            });
+          }, 150);
+        }
+        
+        // Update currentIndex regardless
+        setCurrentIndex(validIndex);
       }
     }, 100);
-  };
-
-  // Handle scroll events to prevent wrapping at edges
-  const handleScroll = (e: any) => {
-    const offsetX = e.nativeEvent.contentOffset.x;
-    
-    // If attempting to scroll beyond the start (negative offset)
-    if (offsetX < 0) {
-      // Force snap back to the first item
-      flatListRef.current?.scrollToOffset({
-        offset: 0,
-        animated: true
-      });
-      return;
-    }
-    
-    // If attempting to scroll beyond the end
-    const maxOffset = (mediaList.length - 1) * width;
-    if (offsetX > maxOffset) {
-      // Force snap back to the last item
-      flatListRef.current?.scrollToOffset({
-        offset: maxOffset,
-        animated: true
-      });
-      return;
-    }
   };
 
   // Handle comment submission
@@ -493,9 +538,9 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
               }));
 
               // Update the mediaList item
-              const currentIndex = mediaList.findIndex(item => item.id === currentMedia.id);
+              const currentIndex = originalMediaList.findIndex(item => item.id === currentMedia.id);
               if (currentIndex !== -1) {
-                mediaList[currentIndex] = updatedMedia;
+                originalMediaList[currentIndex] = updatedMedia;
               }
 
               // Notify parent component of the update
@@ -1026,7 +1071,7 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
   };
 
   return (
-    <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
+    <Modal visible={visible} animationType="none" onRequestClose={onClose}>
       <View style={[styles.container, { paddingTop: insets.top }]}>
         {/* Back button */}
         <TouchableOpacity
@@ -1039,20 +1084,36 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
         {/* Main media carousel with itemized controls */}
         <FlatList
           ref={flatListRef}
-          data={mediaList} 
+          data={originalMediaList} 
           horizontal
           pagingEnabled
-          initialScrollIndex={reversedInitialIndex}
+          initialScrollIndex={initialIndex}
+          getItemLayout={(data, index) => ({
+            length: width,
+            offset: width * index,
+            index,
+          })}
           onMomentumScrollEnd={handleMomentumScrollEnd}
           onScroll={handleScroll}
-          scrollEventThrottle={16}
+          scrollEventThrottle={32}
           renderItem={renderItem}
           keyExtractor={item => item.id}
           showsHorizontalScrollIndicator={false}
           snapToInterval={width}
           snapToAlignment="center"
-          decelerationRate="fast"
+          decelerationRate={0.992}
           onScrollToIndexFailed={handleScrollToIndexFailed}
+          bounces={true}
+          bouncesZoom={true}
+          alwaysBounceHorizontal={true}
+          removeClippedSubviews={false}
+          windowSize={3}
+          maxToRenderPerBatch={3}
+          initialNumToRender={3}
+          maintainVisibleContentPosition={{
+            minIndexForVisible: 0,
+            autoscrollToTopThreshold: 10
+          }}
         />
       </View>
 
@@ -1180,11 +1241,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#f8f8f8',
     borderRadius: 12,
   },
-  commentText: {
-    fontSize: 15,
-    color: '#222',
-    lineHeight: 20,
-  },
   noComments: {
     fontSize: 15,
     color: '#888',
@@ -1205,6 +1261,11 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 16,
     color: '#666'
+  },
+  commentText: {
+    fontSize: 15,
+    color: '#222',
+    lineHeight: 20,
   },
   commentsList: {
     marginTop: 16,
