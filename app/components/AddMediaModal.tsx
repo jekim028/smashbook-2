@@ -30,6 +30,12 @@ const COLORS = {
   secondaryText: '#8E8E93',
   accent: '#FF914D',
   error: '#FF3B30',
+  shadow: 'rgba(0, 0, 0, 0.08)',
+  favorite: '#FF914D',
+  favoriteBackground: 'rgba(255, 145, 77, 0.1)',
+  cardBackground: '#FFFFFF',
+  cardBorder: 'rgba(0, 0, 0, 0.05)',
+  lightAccent: '#FFF0E6',
 };
 
 interface AddMediaModalProps {
@@ -93,6 +99,7 @@ interface Friend {
   id: string;
   email: string;
   displayName?: string;
+  photoURL?: string;
 }
 
 const AddMediaModal: React.FC<AddMediaModalProps> = ({ visible, onClose, onSuccess }) => {
@@ -172,7 +179,8 @@ const AddMediaModal: React.FC<AddMediaModalProps> = ({ visible, onClose, onSucce
           return { 
             id: friendId,
             email: friendData?.email || '',
-            displayName: friendData?.displayName
+            displayName: friendData?.displayName,
+            photoURL: friendData?.photoURL
           };
         })
       );
@@ -397,9 +405,21 @@ const AddMediaModal: React.FC<AddMediaModalProps> = ({ visible, onClose, onSucce
               ]}
               onPress={() => toggleFriendSelection(item.id)}
             >
-              <Text style={styles.friendName}>
-                {item.displayName || item.email}
-              </Text>
+              <View style={styles.friendItemContent}>
+                {item.photoURL ? (
+                  <Image 
+                    source={{ uri: item.photoURL }}
+                    style={styles.friendProfilePicture}
+                  />
+                ) : (
+                  <View style={styles.friendProfilePicture}>
+                    <Ionicons name="person" size={20} color={COLORS.secondaryText} />
+                  </View>
+                )}
+                <Text style={styles.friendName}>
+                  {item.displayName || item.email}
+                </Text>
+              </View>
               {selectedFriends.includes(item.id) && (
                 <Ionicons name="checkmark-circle" size={24} color={COLORS.accent} />
               )}
@@ -751,6 +771,20 @@ const styles = StyleSheet.create({
   },
   friendItemSelected: {
     backgroundColor: 'rgba(255, 145, 77, 0.1)',
+  },
+  friendItemContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  friendProfilePicture: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginRight: 12,
+    backgroundColor: COLORS.lightAccent,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   friendName: {
     fontSize: 16,
