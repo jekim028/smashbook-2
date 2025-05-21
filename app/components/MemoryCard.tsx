@@ -48,12 +48,17 @@ const MemoryCard: React.FC<MemoryCardProps> = ({
   const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
+    console.log('MemoryCard useEffect - type:', type, 'content:', content);
     if (type === 'link' && content?.url && !content.previewImage) {
+      console.log('Triggering fetchLinkMetadata');
       fetchLinkMetadata();
     }
     
-    // Simplified image loading
-    const imageUri = content?.thumbnail || content?.uri || null;
+    // Updated image loading to include previewImage for links
+    const imageUri = type === 'link' 
+      ? content?.previewImage 
+      : content?.thumbnail || content?.uri || null;
+    console.log('Setting imageUri:', imageUri);
     setFullImageUri(imageUri);
     
     // Reset states when content changes
@@ -65,7 +70,9 @@ const MemoryCard: React.FC<MemoryCardProps> = ({
     if (!content.url) return;
     
     try {
+      console.log('Fetching metadata for URL:', content.url);
       const metadata = await getLinkMetadata(content.url);
+      console.log('Received metadata:', metadata);
       setLinkMetadata(metadata);
     } catch (error) {
       console.error('Error fetching link metadata:', error);
@@ -137,9 +144,19 @@ const MemoryCard: React.FC<MemoryCardProps> = ({
   const renderLinkPreview = () => {
     return (
       <View style={styles.linkContainer}>
-        <View style={styles.linkIconContainer}>
-          <Ionicons name="link-outline" size={32} color={COLORS.accent} />
-        </View>
+        {fullImageUri ? (
+          <Image 
+            source={{ uri: fullImageUri }} 
+            style={styles.linkPreviewImage}
+            resizeMode="cover"
+            onLoad={handleImageLoad}
+            onError={handleImageError}
+          />
+        ) : (
+          <View style={styles.linkIconContainer}>
+            <Ionicons name="link-outline" size={32} color={COLORS.accent} />
+          </View>
+        )}
         <Text style={styles.linkTitle} numberOfLines={1}>
           {content?.title || 'Link'}
         </Text>
