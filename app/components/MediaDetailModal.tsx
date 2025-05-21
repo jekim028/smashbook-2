@@ -5,6 +5,7 @@ import {
   Dimensions,
   FlatList,
   Image,
+  Linking,
   Modal,
   ScrollView,
   Share,
@@ -384,6 +385,97 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
     if (item.type === 'photo' || item.type === 'image') {
       if (imageUri) {
         return (
+          <TouchableOpacity 
+            onPress={() => item.content?.url && Linking.openURL(item.content.url)}
+            activeOpacity={0.9}
+          >
+            <View style={{
+              width: width,
+              height: width,
+              backgroundColor: '#fff',
+              justifyContent: 'center',
+              alignItems: 'center'
+            }}>
+              <Image
+                source={{ uri: imageUri }}
+                style={{
+                  width: width * 0.9,
+                  height: width * 0.9,
+                  backgroundColor: 'transparent'
+                }}
+                resizeMode="contain"
+              />
+            </View>
+          </TouchableOpacity>
+        );
+      }
+    }
+    
+    if (item.type === 'link') {
+      return (
+        <TouchableOpacity 
+          onPress={() => item.content?.url && Linking.openURL(item.content.url)}
+          activeOpacity={0.9}
+        >
+          <View style={{
+            width: width,
+            height: width,
+            backgroundColor: '#fff',
+            justifyContent: 'center',
+            alignItems: 'center',
+            padding: 16
+          }}>
+            {item.content?.previewImage ? (
+              <Image
+                source={{ uri: item.content.previewImage }}
+                style={{
+                  width: width * 0.9,
+                  height: width * 0.6,
+                  borderRadius: 12,
+                  marginBottom: 16
+                }}
+                resizeMode="cover"
+              />
+            ) : (
+              <View style={{
+                width: width * 0.9,
+                height: width * 0.6,
+                backgroundColor: '#f8f8f8',
+                borderRadius: 12,
+                justifyContent: 'center',
+                alignItems: 'center',
+                marginBottom: 16
+              }}>
+                <Ionicons name="link-outline" size={48} color="#ddd" />
+              </View>
+            )}
+            <Text style={{
+              fontSize: 18,
+              fontWeight: '600',
+              color: '#222',
+              marginBottom: 8,
+              textAlign: 'center'
+            }}>
+              {item.content?.title || 'Link'}
+            </Text>
+            <Text style={{
+              fontSize: 14,
+              color: '#666',
+              textAlign: 'center'
+            }}>
+              {item.content?.url}
+            </Text>
+          </View>
+        </TouchableOpacity>
+      );
+    }
+    
+    if (item.type === 'video') {
+      return (
+        <TouchableOpacity 
+          onPress={() => item.content?.url && Linking.openURL(item.content.url)}
+          activeOpacity={0.9}
+        >
           <View style={{
             width: width,
             height: width,
@@ -391,82 +483,19 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
             justifyContent: 'center',
             alignItems: 'center'
           }}>
-            <Image
-              source={{ uri: imageUri }}
-              style={{
-                width: width * 0.9, // Slightly smaller than container for visual clarity
-                height: width * 0.9,
-                backgroundColor: 'transparent'
-              }}
-              resizeMode="contain"
-            />
+            <Ionicons name="videocam" size={80} color="#ddd" />
+            <Text style={{ marginTop: 12, color: '#888' }}>Video Content</Text>
           </View>
-        );
-      }
-    }
-    
-    if (item.type === 'link') {
-      console.log('Rendering link preview:', {
-        previewImage: item.content?.previewImage,
-        title: item.content?.title,
-        url: item.content?.url
-      });
-      
-      return (
-        <View style={{
-          width: width,
-          height: width,
-          backgroundColor: '#fff',
-          justifyContent: 'center',
-          alignItems: 'center',
-          padding: 16
-        }}>
-          {item.content?.previewImage ? (
-            <Image
-              source={{ uri: item.content.previewImage }}
-              style={{
-                width: width * 0.9,
-                height: width * 0.6,
-                borderRadius: 12,
-                marginBottom: 16
-              }}
-              resizeMode="cover"
-            />
-          ) : (
-            <View style={{
-              width: width * 0.9,
-              height: width * 0.6,
-              backgroundColor: '#f8f8f8',
-              borderRadius: 12,
-              justifyContent: 'center',
-              alignItems: 'center',
-              marginBottom: 16
-            }}>
-              <Ionicons name="link-outline" size={48} color="#ddd" />
-            </View>
-          )}
-          <Text style={{
-            fontSize: 18,
-            fontWeight: '600',
-            color: '#222',
-            marginBottom: 8,
-            textAlign: 'center'
-          }}>
-            {item.content?.title || 'Link'}
-          </Text>
-          <Text style={{
-            fontSize: 14,
-            color: '#666',
-            textAlign: 'center'
-          }}>
-            {item.content?.url}
-          </Text>
-        </View>
+        </TouchableOpacity>
       );
     }
     
-    if (item.type === 'video') {
-      return (
+    // Default fallback
+    return (
+      <TouchableOpacity 
+        onPress={() => item.content?.url && Linking.openURL(item.content.url)}
+        activeOpacity={0.9}
+      >
         <View style={{
           width: width,
           height: width,
@@ -474,24 +503,10 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
           justifyContent: 'center',
           alignItems: 'center'
         }}>
-          <Ionicons name="videocam" size={80} color="#ddd" />
-          <Text style={{ marginTop: 12, color: '#888' }}>Video Content</Text>
+          <Ionicons name="document-outline" size={80} color="#ddd" />
+          <Text style={{ marginTop: 12, color: '#888' }}>{item.type} Content</Text>
         </View>
-      );
-    }
-    
-    // Default fallback
-    return (
-      <View style={{
-        width: width,
-        height: width,
-        backgroundColor: '#fff',
-        justifyContent: 'center',
-        alignItems: 'center'
-      }}>
-        <Ionicons name="document-outline" size={80} color="#ddd" />
-        <Text style={{ marginTop: 12, color: '#888' }}>{item.type} Content</Text>
-      </View>
+      </TouchableOpacity>
     );
   };
 
