@@ -201,6 +201,9 @@ export const MemoryFeed: React.FC = () => {
       return;
     }
 
+    // Create a map to store all memories by ID to prevent duplicates
+    let allMemoriesMap = new Map();
+
     const memoriesRef = collection(db, 'memories');
     const q = query(
       memoriesRef,
@@ -210,20 +213,17 @@ export const MemoryFeed: React.FC = () => {
     // Set up real-time listener for user's own memories
     const ownMemoriesUnsubscribe = onSnapshot(q, 
       (snapshot) => {
-        const memoryList: Memory[] = [];
         snapshot.forEach((doc) => {
-          memoryList.push({ id: doc.id, ...doc.data() } as Memory);
+          allMemoriesMap.set(doc.id, { id: doc.id, ...doc.data() } as Memory);
         });
         
-        // Sort locally instead of using orderBy in the query
-        memoryList.sort((a, b) => {
+        // Update memories state with all memories from the map
+        const allMemories = Array.from(allMemoriesMap.values());
+        setMemories(allMemories.sort((a, b) => {
           const dateA = a.date.toDate().getTime();
           const dateB = b.date.toDate().getTime();
           return dateB - dateA; // descending order (newest first)
-        });
-        
-        setMemories(memoryList);
-        setIsLoading(false);
+        }));
       },
       (error) => {
         console.error('Error fetching own memories:', error);
@@ -240,10 +240,8 @@ export const MemoryFeed: React.FC = () => {
 
     const sharedMemoriesUnsubscribe = onSnapshot(sharedQ,
       async (snapshot) => {
-        const sharedMemoryList: Memory[] = [];
-        
         // Process each shared memory
-        for (const docSnapshot of snapshot.docs) {
+        const sharedMemoryPromises = snapshot.docs.map(async (docSnapshot) => {
           const data = docSnapshot.data();
           const memory = { id: docSnapshot.id, ...data } as Memory;
           
@@ -267,21 +265,30 @@ export const MemoryFeed: React.FC = () => {
             }
           }
           
-          sharedMemoryList.push(memory);
-        }
-
-        // Combine with existing memories and sort
-        setMemories(prevMemories => {
-          const combined = [...prevMemories, ...sharedMemoryList];
-          return combined.sort((a, b) => {
-            const dateA = a.date.toDate().getTime();
-            const dateB = b.date.toDate().getTime();
-            return dateB - dateA; // descending order (newest first)
-          });
+          return memory;
         });
+
+        // Wait for all shared memory data to be processed
+        const sharedMemories = await Promise.all(sharedMemoryPromises);
+        
+        // Add shared memories to the map
+        sharedMemories.forEach(memory => {
+          allMemoriesMap.set(memory.id, memory);
+        });
+
+        // Update memories state with all memories from the map
+        const allMemories = Array.from(allMemoriesMap.values());
+        setMemories(allMemories.sort((a, b) => {
+          const dateA = a.date.toDate().getTime();
+          const dateB = b.date.toDate().getTime();
+          return dateB - dateA; // descending order (newest first)
+        }));
+        
+        setIsLoading(false);
       },
       (error) => {
         console.error('Error fetching shared memories:', error);
+        setIsLoading(false);
       }
     );
 
@@ -491,6 +498,9 @@ export const MemoryFeed: React.FC = () => {
       return;
     }
 
+    // Create a map to store all memories by ID to prevent duplicates
+    let allMemoriesMap = new Map();
+
     // Set up real-time listener for user's own memories
     const memoriesRef = collection(db, 'memories');
     const q = query(
@@ -500,20 +510,17 @@ export const MemoryFeed: React.FC = () => {
 
     const ownMemoriesUnsubscribe = onSnapshot(q, 
       (snapshot) => {
-        const memoryList: Memory[] = [];
         snapshot.forEach((doc) => {
-          memoryList.push({ id: doc.id, ...doc.data() } as Memory);
+          allMemoriesMap.set(doc.id, { id: doc.id, ...doc.data() } as Memory);
         });
         
-        // Sort locally instead of using orderBy in the query
-        memoryList.sort((a, b) => {
+        // Update memories state with all memories from the map
+        const allMemories = Array.from(allMemoriesMap.values());
+        setMemories(allMemories.sort((a, b) => {
           const dateA = a.date.toDate().getTime();
           const dateB = b.date.toDate().getTime();
           return dateB - dateA; // descending order (newest first)
-        });
-        
-        setMemories(memoryList);
-        setIsLoading(false);
+        }));
       },
       (error) => {
         console.error('Error fetching own memories:', error);
@@ -530,10 +537,8 @@ export const MemoryFeed: React.FC = () => {
 
     const sharedMemoriesUnsubscribe = onSnapshot(sharedQ,
       async (snapshot) => {
-        const sharedMemoryList: Memory[] = [];
-        
         // Process each shared memory
-        for (const docSnapshot of snapshot.docs) {
+        const sharedMemoryPromises = snapshot.docs.map(async (docSnapshot) => {
           const data = docSnapshot.data();
           const memory = { id: docSnapshot.id, ...data } as Memory;
           
@@ -557,21 +562,30 @@ export const MemoryFeed: React.FC = () => {
             }
           }
           
-          sharedMemoryList.push(memory);
-        }
-
-        // Combine with existing memories and sort
-        setMemories(prevMemories => {
-          const combined = [...prevMemories, ...sharedMemoryList];
-          return combined.sort((a, b) => {
-            const dateA = a.date.toDate().getTime();
-            const dateB = b.date.toDate().getTime();
-            return dateB - dateA; // descending order (newest first)
-          });
+          return memory;
         });
+
+        // Wait for all shared memory data to be processed
+        const sharedMemories = await Promise.all(sharedMemoryPromises);
+        
+        // Add shared memories to the map
+        sharedMemories.forEach(memory => {
+          allMemoriesMap.set(memory.id, memory);
+        });
+
+        // Update memories state with all memories from the map
+        const allMemories = Array.from(allMemoriesMap.values());
+        setMemories(allMemories.sort((a, b) => {
+          const dateA = a.date.toDate().getTime();
+          const dateB = b.date.toDate().getTime();
+          return dateB - dateA; // descending order (newest first)
+        }));
+        
+        setIsLoading(false);
       },
       (error) => {
         console.error('Error fetching shared memories:', error);
+        setIsLoading(false);
       }
     );
 
