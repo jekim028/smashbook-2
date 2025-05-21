@@ -4,11 +4,13 @@ import { collection, doc, getDoc, getDocs, query, updateDoc, where } from 'fireb
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
+  Animated,
   Dimensions,
   FlatList,
   Image,
   Linking,
   Modal,
+  PanResponder,
   ScrollView,
   Share,
   StyleSheet,
@@ -120,6 +122,42 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
   const [availableFriends, setAvailableFriends] = useState<SharedUser[]>([]);
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
   const [showFriendSelection, setShowFriendSelection] = useState(false);
+  const translateY = useRef(new Animated.Value(0)).current;
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        return gestureState.dy > 0;
+      },
+      onPanResponderMove: (_, gestureState) => {
+        if (gestureState.dy > 0) {
+          translateY.setValue(gestureState.dy);
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dy > 50) {
+          // If dragged down more than 50 units, close the modal
+          Animated.timing(translateY, {
+            toValue: height,
+            duration: 200,
+            useNativeDriver: true,
+          }).start(() => {
+            setShowFriendSelection(false);
+            setShowSharedWithModal(false);
+            translateY.setValue(0);
+          });
+        } else {
+          // If not dragged enough, snap back
+          Animated.spring(translateY, {
+            toValue: 0,
+            useNativeDriver: true,
+            bounciness: 10,
+          }).start();
+        }
+      },
+    })
+  ).current;
 
   useEffect(() => {
     if (visible && flatListRef.current && mediaList.length > 0) {
@@ -858,19 +896,22 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
   const renderFriendSelection = () => (
     <View style={styles.modalContent}>
       <View style={styles.sharedWithModalHeader}>
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => setShowFriendSelection(false)}
-        >
-          <Ionicons name="arrow-back" size={24} color="#222" />
-        </TouchableOpacity>
-        <Text style={styles.sharedWithModalTitle}>Select Friends</Text>
-        <TouchableOpacity 
-          onPress={() => setShowSharedWithModal(false)}
-          style={styles.sharedWithModalCloseButton}
-        >
-          <Ionicons name="close" size={24} color="#222" />
-        </TouchableOpacity>
+        <View style={styles.modalHandle} />
+        <View style={styles.headerTitleRow}>
+          <TouchableOpacity 
+            style={styles.headerButton}
+            onPress={() => setShowFriendSelection(false)}
+          >
+            <Ionicons name="arrow-back" size={24} color="#222" />
+          </TouchableOpacity>
+          <Text style={styles.sharedWithModalTitle}>Select Friends</Text>
+          <TouchableOpacity 
+            style={styles.headerButton}
+            onPress={() => setShowSharedWithModal(false)}
+          >
+            <Ionicons name="close" size={24} color="#222" />
+          </TouchableOpacity>
+        </View>
       </View>
       
       <ScrollView style={styles.sharedWithModalList}>
@@ -930,55 +971,54 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
     return (
       <View style={styles.modalContent}>
         <View style={styles.sharedWithModalHeader}>
-          <Text style={styles.sharedWithModalTitle}>Shared With</Text>
-          <TouchableOpacity 
-            onPress={() => setShowSharedWithModal(false)}
-            style={styles.sharedWithModalCloseButton}
-          >
-            <Ionicons name="close" size={24} color="#222" />
-          </TouchableOpacity>
+          <View style={styles.modalHandle} />
+          <View style={styles.headerTitleRow}>
+            <View style={styles.headerButton} />
+            <Text style={styles.sharedWithModalTitle}>Shared With</Text>
+            {isOwner ? (
+              <TouchableOpacity 
+                onPress={() => setShowFriendSelection(true)}
+                style={styles.headerButton}
+              >
+                <Ionicons name="person-add-outline" size={24} color={COLORS.accent} />
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.headerButton} />
+            )}
+          </View>
         </View>
         
         <ScrollView style={styles.sharedWithModalList}>
-          {isOwner && (
-            <TouchableOpacity
-              style={styles.friendSelectionContainer}
-              onPress={() => setShowFriendSelection(true)}
-            >
-              <Text style={styles.sectionTitle}>Share with Friends</Text>
-              <Ionicons name="chevron-forward" size={24} color="#222" />
-            </TouchableOpacity>
-          )}
-          
-          {currentUsers.length > 0 && (
-            <>
-              <Text style={styles.sectionTitle}>Currently Shared With</Text>
-              {currentUsers.map((user) => (
-                <View key={user.id} style={styles.sharedWithModalItem}>
-                  {user.photoURL ? (
-                    <Image 
-                      source={{ uri: user.photoURL }} 
-                      style={styles.sharedWithModalAvatar}
-                    />
-                  ) : (
-                    <View style={styles.sharedWithModalAvatarPlaceholder}>
-                      <Ionicons name="person" size={20} color="#8E8E93" />
-                    </View>
-                  )}
-                  <Text style={styles.sharedWithModalName}>
-                    {user.displayName || 'Unknown User'}
-                  </Text>
-                  {isOwner && (
-                    <TouchableOpacity
-                      style={styles.unshareButton}
-                      onPress={() => handleUnshare(user.id, user.displayName || 'Unknown User')}
-                    >
-                      <Ionicons name="close" size={24} color="#222" />
-                    </TouchableOpacity>
-                  )}
-                </View>
-              ))}
-            </>
+          {currentUsers.length > 0 ? (
+            currentUsers.map((user) => (
+              <View key={user.id} style={styles.sharedWithModalItem}>
+                {user.photoURL ? (
+                  <Image 
+                    source={{ uri: user.photoURL }} 
+                    style={styles.sharedWithModalAvatar}
+                  />
+                ) : (
+                  <View style={styles.sharedWithModalAvatarPlaceholder}>
+                    <Ionicons name="person" size={20} color="#8E8E93" />
+                  </View>
+                )}
+                <Text style={styles.sharedWithModalName}>
+                  {user.displayName || 'Unknown User'}
+                </Text>
+                {isOwner && (
+                  <TouchableOpacity
+                    style={styles.unshareButton}
+                    onPress={() => handleUnshare(user.id, user.displayName || 'Unknown User')}
+                  >
+                    <Ionicons name="close" size={24} color="#222" />
+                  </TouchableOpacity>
+                )}
+              </View>
+            ))
+          ) : (
+            <Text style={styles.noSharedUsersText}>
+              {isOwner ? 'Share this memory with your friends!' : 'No users to display'}
+            </Text>
           )}
         </ScrollView>
       </View>
@@ -1025,11 +1065,22 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
           setShowSharedWithModal(false);
         }}
       >
-        <View style={styles.sharedWithModalContainer}>
-          <View style={[styles.sharedWithModalContent, { paddingBottom: insets.bottom || 20 }]}>
-            {showFriendSelection ? renderFriendSelection() : renderSharedWithList()}
+        <TouchableOpacity 
+          style={styles.sharedWithModalContainer} 
+          activeOpacity={1}
+          onPress={() => {
+            setShowFriendSelection(false);
+            setShowSharedWithModal(false);
+          }}
+        >
+          <View 
+            style={[styles.sharedWithModalContent, { paddingBottom: insets.bottom || 20 }]}
+          >
+            <View style={styles.modalContent}>
+              {showFriendSelection ? renderFriendSelection() : renderSharedWithList()}
+            </View>
           </View>
-        </View>
+        </TouchableOpacity>
       </Modal>
     </Modal>
   );
@@ -1243,22 +1294,48 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     minHeight: height * 0.5,
     maxHeight: height * 0.7,
+    overflow: 'hidden',
   },
   sharedWithModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0f0',
   },
+  headerTitleRow: {
+    width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  headerButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: '#E0E0E0',
+    borderRadius: 2,
+    marginBottom: 16,
+  },
   sharedWithModalTitle: {
     fontSize: 18,
     fontWeight: '600',
     color: '#222',
+    flex: 1,
+    textAlign: 'center',
   },
-  sharedWithModalCloseButton: {
+  sharedWithModalShareButton: {
     padding: 8,
+  },
+  noSharedUsersText: {
+    textAlign: 'center',
+    color: '#8E8E93',
+    fontSize: 16,
+    marginTop: 24,
   },
   sharedWithModalList: {
     padding: 16,
@@ -1360,8 +1437,18 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     flex: 1,
+    backgroundColor: '#fff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    overflow: 'hidden',
   },
   unshareButton: {
+    padding: 8,
+  },
+  friendSelectionBackButton: {
+    position: 'absolute',
+    left: 16,
+    top: 40,
     padding: 8,
   },
 });
