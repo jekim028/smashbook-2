@@ -756,14 +756,16 @@ export const MemoryFeed: React.FC = () => {
               type: m.type === 'reel' ? 'video' : m.type, // treat 'reel' as 'video'
               content: {
                 ...m.content,
-                sharedBy: m.content?.sharedBy || null
+                sharedBy: m.content?.sharedBy || null,
+                previewImage: m.content?.previewImage || null,
+                title: m.content?.title || null,
+                url: m.content?.url || null
               },
               isFavorite: m.isFavorite,
               caption: m.content?.caption || '',
               comments: m.content?.comments || [],
               date: m.date,
-            }))
-          }
+            }))}
           initialIndex={mediaDetailIndex}
           onClose={() => setIsMediaDetailVisible(false)}
           onFavorite={handleFavorite}

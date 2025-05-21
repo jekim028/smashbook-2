@@ -39,6 +39,8 @@ interface MediaItem {
       photoURL: string | null;
       displayName: string | null;
     };
+    previewImage?: string;
+    title?: string;
   };
   isFavorite?: boolean;
   caption?: string;
@@ -68,6 +70,12 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
   onClose,
   onFavorite,
 }) => {
+  console.log('MediaDetailModal rendered with:', {
+    visible,
+    mediaListLength: originalMediaList.length,
+    initialIndex
+  });
+
   // Reverse the media list for correct swipe direction - newest to oldest
   const mediaList = [...originalMediaList].reverse();
   
@@ -100,14 +108,18 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
   useEffect(() => {
     // Log the data of the current media for debugging
     if (currentMedia && __DEV__) {
-      console.log('Current media content in modal:', 
-        currentMedia.id,
-        currentMedia.type,
-        currentMedia.content ? 
-          `uri: ${currentMedia.content.uri?.substring(0, 30)}..., ` + 
-          `thumbnail: ${currentMedia.content.thumbnail?.substring(0, 30)}...` : 
-          'No content'
-      );
+      console.log('Current media content in modal:', {
+        id: currentMedia.id,
+        type: currentMedia.type,
+        content: {
+          uri: currentMedia.content?.uri,
+          thumbnail: currentMedia.content?.thumbnail,
+          previewImage: currentMedia.content?.previewImage,
+          title: currentMedia.content?.title,
+          url: currentMedia.content?.url,
+          caption: currentMedia.content?.caption
+        }
+      });
     }
   }, [currentIndex, currentMedia]);
 
@@ -354,6 +366,18 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
 
   // Completely simplified renderMedia function
   const renderMedia = (item: MediaItem) => {
+    console.log('Rendering media item:', {
+      id: item.id,
+      type: item.type,
+      content: {
+        uri: item.content?.uri,
+        thumbnail: item.content?.thumbnail,
+        previewImage: item.content?.previewImage,
+        title: item.content?.title,
+        url: item.content?.url
+      }
+    });
+
     // Get image URI - focus on thumbnail first, then fall back to uri
     const imageUri = item.content?.thumbnail || item.content?.uri || '';
     
@@ -379,6 +403,66 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
           </View>
         );
       }
+    }
+    
+    if (item.type === 'link') {
+      console.log('Rendering link preview:', {
+        previewImage: item.content?.previewImage,
+        title: item.content?.title,
+        url: item.content?.url
+      });
+      
+      return (
+        <View style={{
+          width: width,
+          height: width,
+          backgroundColor: '#fff',
+          justifyContent: 'center',
+          alignItems: 'center',
+          padding: 16
+        }}>
+          {item.content?.previewImage ? (
+            <Image
+              source={{ uri: item.content.previewImage }}
+              style={{
+                width: width * 0.9,
+                height: width * 0.6,
+                borderRadius: 12,
+                marginBottom: 16
+              }}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={{
+              width: width * 0.9,
+              height: width * 0.6,
+              backgroundColor: '#f8f8f8',
+              borderRadius: 12,
+              justifyContent: 'center',
+              alignItems: 'center',
+              marginBottom: 16
+            }}>
+              <Ionicons name="link-outline" size={48} color="#ddd" />
+            </View>
+          )}
+          <Text style={{
+            fontSize: 18,
+            fontWeight: '600',
+            color: '#222',
+            marginBottom: 8,
+            textAlign: 'center'
+          }}>
+            {item.content?.title || 'Link'}
+          </Text>
+          <Text style={{
+            fontSize: 14,
+            color: '#666',
+            textAlign: 'center'
+          }}>
+            {item.content?.url}
+          </Text>
+        </View>
+      );
     }
     
     if (item.type === 'video') {
