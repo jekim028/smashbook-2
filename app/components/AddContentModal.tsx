@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { addDoc, collection, doc, getDoc, getDocs, query, Timestamp, where } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, FlatList, Modal, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, FlatList, Keyboard, Modal, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import { auth, db } from '../../constants/Firebase';
 import { getLinkMetadata } from '../utils/linkPreview';
 
@@ -254,9 +254,11 @@ const AddContentModal: React.FC<AddContentModalProps> = ({ visible, onClose }): 
       transparent={true}
       onRequestClose={onClose}
     >
-      <View style={styles.modalContainer}>
-        {isFriendSelection ? renderFriendSelection() : renderLinkInput()}
-      </View>
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <View style={styles.modalContainer}>
+          {isFriendSelection ? renderFriendSelection() : renderLinkInput()}
+        </View>
+      </TouchableWithoutFeedback>
     </Modal>
   );
 };
