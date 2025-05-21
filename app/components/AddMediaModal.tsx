@@ -438,11 +438,11 @@ const AddMediaModal: React.FC<AddMediaModalProps> = ({ visible, onClose, onSucce
     >
       <KeyboardAvoidingView 
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.centeredView}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 40 : 0}
+        style={[styles.centeredView, { paddingBottom: 0 }]}
+        keyboardVerticalOffset={0}
       >
         <TouchableWithoutFeedback onPress={dismissKeyboard}>
-          <View style={styles.modalView}>
+          <View style={[styles.modalView, { flex: 1, paddingBottom: 0 }]}>
             {isFriendSelection ? (
               renderFriendSelection()
             ) : (
@@ -562,17 +562,6 @@ const AddMediaModal: React.FC<AddMediaModalProps> = ({ visible, onClose, onSucce
 
                   <View style={styles.bottomSpacer} />
                 </ScrollView>
-
-                {keyboardVisible && Platform.OS === 'ios' && (
-                  <View style={styles.keyboardAccessory}>
-                    <TouchableOpacity 
-                      style={styles.keyboardDoneButton}
-                      onPress={dismissKeyboard}
-                    >
-                      <Text style={styles.keyboardDoneButtonText}>Done</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
               </>
             )}
           </View>
@@ -593,6 +582,7 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 24,
+    paddingBottom: 0,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
@@ -602,6 +592,7 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 10,
     maxHeight: '90%',
+    minHeight: '50%',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -724,25 +715,6 @@ const styles = StyleSheet.create({
   },
   bottomSpacer: {
     height: 100, // Add extra space at the bottom for scrolling
-  },
-  keyboardAccessory: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    backgroundColor: '#f1f1f1',
-    borderTopWidth: 1,
-    borderTopColor: '#ddd',
-  },
-  keyboardDoneButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  keyboardDoneButtonText: {
-    color: COLORS.accent,
-    fontWeight: '600',
-    fontSize: 16,
   },
   backButton: {
     padding: 8,
