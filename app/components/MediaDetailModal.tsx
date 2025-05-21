@@ -479,7 +479,7 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
             )}
 
             {/* Update Shared With section */}
-            {item.sharedWith && item.sharedWith.length > 0 && (
+            {((item.sharedWith && item.sharedWith.length > 0) || item.userId === currentUserId) && (
               <TouchableOpacity 
                 onPress={() => setShowSharedWithModal(true)}
                 style={styles.sharedWithList}
