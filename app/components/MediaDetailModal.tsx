@@ -135,36 +135,23 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
   useEffect(() => {
     if (visible) {
       setCurrentIndex(reversedInitialIndex);
-    }
-  }, [visible, reversedInitialIndex]);
-
-  // Add effect to scroll to current index when modal opens
-  useEffect(() => {
-    if (visible && flatListRef.current && mediaList.length > 0) {
       // Small delay to ensure FlatList is ready
       setTimeout(() => {
         flatListRef.current?.scrollToIndex({
-          index: currentIndex,
+          index: reversedInitialIndex,
           animated: false,
           viewPosition: 0.5
         });
       }, 100);
     }
-  }, [visible, currentIndex, mediaList]);
+  }, [visible, reversedInitialIndex]);
 
-  // Add effect to handle shared with modal visibility
+  // Remove the other scroll-related effects and keep only the friend selection reset
   useEffect(() => {
-    if (!showSharedWithModal) {
-      // When shared with modal closes, ensure we're at the correct index
-      if (flatListRef.current) {
-        flatListRef.current?.scrollToIndex({
-          index: currentIndex,
-          animated: false,
-          viewPosition: 0.5
-        });
-      }
+    if (showSharedWithModal) {
+      setShowFriendSelection(false);
     }
-  }, [showSharedWithModal, currentIndex]);
+  }, [showSharedWithModal]);
 
   useEffect(() => {
     // Log the data of the current media for debugging
