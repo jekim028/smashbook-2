@@ -1,8 +1,8 @@
 import { router } from 'expo-router';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
-import React, { useState } from 'react';
-import { ActivityIndicator, Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { useState } from 'react';
+import { ActivityIndicator, Alert, Animated, Easing, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { auth, db } from '../constants/Firebase';
 
 export default function LoginScreen() {
@@ -12,6 +12,7 @@ export default function LoginScreen() {
   const [lastName, setLastName] = useState('');
   const [isLogin, setIsLogin] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
+  const [logoAnim] = useState(new Animated.Value(1));
 
   const handleAuth = async () => {
     try {
@@ -52,8 +53,30 @@ export default function LoginScreen() {
     }
   };
 
+  const handleToggle = () => {
+    Animated.sequence([
+      Animated.timing(logoAnim, {
+        toValue: 1.1,
+        duration: 150,
+        useNativeDriver: true,
+        easing: Easing.out(Easing.ease),
+      }),
+      Animated.timing(logoAnim, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+        easing: Easing.in(Easing.ease),
+      }),
+    ]).start();
+    setIsLogin(!isLogin);
+  };
+
   return (
     <View style={styles.container}>
+      <Animated.View style={{ alignItems: 'center', transform: [{ scale: logoAnim }] }}>
+        <Image source={require('../assets/images/smashbook-logo.png')} style={styles.logo} resizeMode="contain" />
+        <Text style={styles.tagline}>Collect the past. Color the present.</Text>
+      </Animated.View>
       <Text style={styles.title}>{isLogin ? 'Login' : 'Sign Up'}</Text>
 
       {!isLogin && (
@@ -64,6 +87,7 @@ export default function LoginScreen() {
             value={firstName}
             onChangeText={setFirstName}
             autoCapitalize="words"
+            placeholderTextColor="#A0A0A0"
           />
           <TextInput
             style={styles.input}
@@ -71,6 +95,7 @@ export default function LoginScreen() {
             value={lastName}
             onChangeText={setLastName}
             autoCapitalize="words"
+            placeholderTextColor="#A0A0A0"
           />
         </>
       )}
@@ -82,6 +107,7 @@ export default function LoginScreen() {
         onChangeText={setEmail}
         autoCapitalize="none"
         keyboardType="email-address"
+        placeholderTextColor="#A0A0A0"
       />
       <TextInput
         style={styles.input}
@@ -89,12 +115,14 @@ export default function LoginScreen() {
         value={password}
         onChangeText={setPassword}
         secureTextEntry
+        placeholderTextColor="#A0A0A0"
       />
       
       <TouchableOpacity 
         style={[styles.button, isLoading && styles.buttonDisabled]} 
         onPress={handleAuth}
         disabled={isLoading}
+        activeOpacity={0.85}
       >
         {isLoading ? (
           <ActivityIndicator color="#fff" />
@@ -103,7 +131,7 @@ export default function LoginScreen() {
         )}
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => setIsLogin(!isLogin)}>
+      <TouchableOpacity onPress={handleToggle} activeOpacity={0.7}>
         <Text style={styles.switchText}>
           {isLogin ? 'Need an account? Sign Up' : 'Have an account? Login'}
         </Text>
@@ -117,27 +145,50 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     padding: 20,
-    backgroundColor: '#fff',
+    backgroundColor: '#fdfcf8', // matches logo background
   },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    marginBottom: 20,
-    textAlign: 'center',
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: '#ddd',
-    padding: 10,
-    fontSize: 18,
-    borderRadius: 6,
+  logo: {
+    width: 120,
+    height: 120,
     marginBottom: 10,
   },
+  tagline: {
+    fontSize: 16,
+    color: '#FF914D', // orange from logo
+    fontWeight: '600',
+    marginBottom: 18,
+    textAlign: 'center',
+    letterSpacing: 0.2,
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    marginBottom: 18,
+    textAlign: 'center',
+    color: '#1A3140', // navy from logo
+    letterSpacing: 0.5,
+  },
+  input: {
+    borderWidth: 0,
+    backgroundColor: '#fff',
+    padding: 14,
+    fontSize: 17,
+    borderRadius: 14,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 2,
+  },
   button: {
-    backgroundColor: '#007AFF',
-    padding: 15,
-    borderRadius: 6,
+    backgroundColor: '#FF914D', // orange from logo
+    padding: 16,
+    borderRadius: 14,
     marginTop: 10,
+    shadowColor: '#FF914D',
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    elevation: 3,
   },
   buttonDisabled: {
     opacity: 0.7,
@@ -147,10 +198,14 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 18,
     fontWeight: 'bold',
+    letterSpacing: 0.5,
   },
   switchText: {
-    color: '#007AFF',
+    color: '#1A3140', // navy from logo
     textAlign: 'center',
-    marginTop: 15,
+    marginTop: 18,
+    fontWeight: '600',
+    fontSize: 15,
+    letterSpacing: 0.2,
   },
 }); 

@@ -7,16 +7,34 @@
     "icon": "./assets/images/icon.png",
     "scheme": "smashbook2",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
+    "newArchEnabled": false,
+    "splash": {
+      "image": "./assets/images/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#ffffff"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.esi.smashbook2",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Allow Smashbook to access your camera to take photos for your memories",
+        "NSPhotoLibraryUsageDescription": "Allow Smashbook to access your photos to add them to your memories",
+        "NSPhotoLibraryAddUsageDescription": "Allow Smashbook to save photos to your photo library"
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -25,15 +43,8 @@
     },
     "plugins": [
       "expo-router",
-      [
-        "expo-splash-screen",
-        {
-          "image": "./assets/images/splash-icon.png",
-          "imageWidth": 200,
-          "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
-        }
-      ]
+      "expo-image-picker",
+      "expo-file-system"
     ],
     "experiments": {
       "typedRoutes": true

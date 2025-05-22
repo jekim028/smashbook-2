@@ -14,7 +14,9 @@ service cloud.firestore {
 
     // Users collection rules
     match /users/{userId} {
-      allow read, write: if isAuthenticated();
+      allow read: if isAuthenticated();
+      // Allow writes to own document with increased size limit for profile images
+      allow write: if isAuthenticated() && isOwner(userId);
     }
 
     // Friendships collection rules
