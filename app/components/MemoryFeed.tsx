@@ -144,6 +144,19 @@ export const MemoryFeed: React.FC = () => {
     }
   }, [memoryGroups]);
 
+  // Scroll to bottom when content is first displayed after loading
+  useEffect(() => {
+    if (isFullyLoaded && flatListRef.current && memoryGroups.length > 0) {
+      console.log("Scrolling to bottom on initial display");
+      // Add a small delay to ensure FlatList is fully rendered
+      setTimeout(() => {
+        if (flatListRef.current) {
+          flatListRef.current.scrollToEnd({ animated: false });
+        }
+      }, 100);
+    }
+  }, [isFullyLoaded, memoryGroups.length]);
+
   // Debug loading states
   useEffect(() => {
     console.log(`Loading state changed: isLoading=${isLoading}, isFullyLoaded=${isFullyLoaded}, hasScrolledToBottom=${hasScrolledToBottom}, groups=${memoryGroups.length}`);
@@ -589,13 +602,24 @@ export const MemoryFeed: React.FC = () => {
     setContainerHeight(event.nativeEvent.layout.height);
   };
 
+  // For content fade-in animation
+  const contentOpacity = useRef(new Animated.Value(0)).current;
+
+  // Animate content fade-in when fully loaded
+  useEffect(() => {
+    if (isFullyLoaded) {
+      Animated.timing(contentOpacity, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
+    }
+  }, [isFullyLoaded]);
+
   if (isLoading || !isFullyLoaded) {
     return (
-      <View style={styles.loadingContainer}>
-        <View style={styles.loadingContent}>
-          <View style={styles.logoContainer}>
-            <Ionicons name="fish" size={40} color={COLORS.accent} />
-          </View>
+      <View style={styles.safeArea}>
+        <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.accent} style={styles.loadingIndicator} />
           <Text style={styles.loadingText}>{loadingMessage}</Text>
         </View>
@@ -605,7 +629,7 @@ export const MemoryFeed: React.FC = () => {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
+      <Animated.View style={[styles.container, { opacity: contentOpacity }]}>
         {/* Updated Header with floating date */}
         <View style={[
           styles.header, 
@@ -650,7 +674,7 @@ export const MemoryFeed: React.FC = () => {
               <Ionicons name="search-outline" size={24} color={COLORS.text} />
             </TouchableOpacity>
             <TouchableOpacity 
-  style={styles.headerButton}
+              style={styles.headerButton}
               onPress={() => router.push('/profile')}
             >
               <View style={styles.profileButton}>
@@ -673,13 +697,13 @@ export const MemoryFeed: React.FC = () => {
         ]}>
           <View style={styles.searchInputContainer}>
             <Ionicons name="search" size={18} color={COLORS.secondaryText} style={styles.searchIcon} />
-          <TextInput
-            style={styles.searchInput}
-            placeholder="Search memories..."
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-            placeholderTextColor={COLORS.secondaryText}
-          />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search memories..."
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholderTextColor={COLORS.secondaryText}
+            />
           </View>
           {isSearchExpanded && (
             <TouchableOpacity 
@@ -708,21 +732,9 @@ export const MemoryFeed: React.FC = () => {
           updateCellsBatchingPeriod={50}
           removeClippedSubviews={true}
           initialNumToRender={5}
-          initialScrollIndex={memoryGroups.length > 2 ? Math.max(0, memoryGroups.length - 1) : undefined}
           maintainVisibleContentPosition={{
             minIndexForVisible: 0,
             autoscrollToTopThreshold: 0
-          }}
-          // Use getItemLayout for smoother scrolling
-          getItemLayout={(data, index) => {
-            // Estimate average height for each group
-            // This helps FlatList optimize rendering
-            const averageHeight = 250; // Adjust based on your typical group size
-            return {
-              length: averageHeight,
-              offset: averageHeight * index,
-              index
-            };
           }}
         />
 
@@ -748,8 +760,8 @@ export const MemoryFeed: React.FC = () => {
               </View>
               <Text style={styles.fanMenuText}>Upload Media</Text>
             </TouchableOpacity>
-              </View>
-          )}
+          </View>
+        )}
 
         {/* Add Content Button with Fan-out menu */}
         <TouchableOpacity 
@@ -825,7 +837,7 @@ export const MemoryFeed: React.FC = () => {
             }
           }}
         />
-      </View>
+      </Animated.View>
     </SafeAreaView>
   );
 };
@@ -932,23 +944,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: COLORS.background,
   },
-  loadingContent: {
-    flexDirection: 'column',
-    alignItems: 'center',
-    backgroundColor: 'white',
-    paddingVertical: 24,
-    paddingHorizontal: 30,
-    borderRadius: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 5,
-  },
   loadingIndicator: {
     marginBottom: 16,
-    height: 50,
-    width: 50,
   },
   loadingText: {
     fontSize: 16,
