@@ -46,6 +46,8 @@ export default function Profile() {
   const [friends, setFriends] = useState<User[]>([]);
   const [newFriend, setNewFriend] = useState('');
   const [isAddingFriend, setIsAddingFriend] = useState(false);
+  const [searchResults, setSearchResults] = useState<{id: string, displayName: string, username?: string, email: string}[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
   const [memories, setMemories] = useState<Memory[]>([]);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [profileData, setProfileData] = useState<{
@@ -77,13 +79,13 @@ export default function Profile() {
 
   // Add this useEffect to reshuffle the Quick Smashbook
   useEffect(() => {
-    // Reshuffle the Quick Smashbook every 3 seconds
+    // Reshuffle the Quick Smashbook every 10 seconds
     const interval = setInterval(() => {
       setQuickSmashbookKey(prev => {
         console.log('Reshuffling Quick Smashbook...', prev + 1);
         return prev + 1;
       });
-    }, 3000);
+    }, 10000);
     
     return () => clearInterval(interval);
   }, []);
@@ -242,74 +244,53 @@ export default function Profile() {
   };
 
   const addFriendByUsername = async () => {
-    if (!user || !newFriend.trim()) return;
+    if (!user || !newFriend.trim()) {
+      setSearchResults([]);
+      return;
+    }
 
     try {
-      // Find user by username first, then by email as fallback
+      setIsSearching(true);
+      
+      // Get all users to search through
       const usersRef = collection(db, 'users');
-      const q = query(usersRef, where('username', '==', newFriend.trim()));
-      let querySnapshot = await getDocs(q);
+      const allUsersSnapshot = await getDocs(usersRef);
       
-      if (querySnapshot.empty) {
-        // If no user found by username, try email
-        const emailQ = query(usersRef, where('email', '==', newFriend.trim()));
-        querySnapshot = await getDocs(emailQ);
-      }
-      
-      if (querySnapshot.empty) {
-        Alert.alert('User not found', 'No user found with that username or email.');
-        return;
-      }
-      
-      const friendDoc = querySnapshot.docs[0];
-      const friendId = friendDoc.id;
-      
-      if (friendId === user.uid) {
-        Alert.alert('Cannot add yourself', 'You cannot add yourself as a friend.');
-        return;
-      }
-      
-      // Check if already friends
-      const friendshipRef = collection(db, 'friendships');
-      const friendshipQ = query(
-        friendshipRef, 
-        where('userId', '==', user.uid),
-        where('friendId', '==', friendId)
-      );
-      const existingFriendship = await getDocs(friendshipQ);
-      
-      if (!existingFriendship.empty) {
-        Alert.alert('Already friends', 'You are already friends with this user.');
-        return;
-      }
-      
-      // Add friendship (both ways for simplicity)
-      const batch = writeBatch(db);
-      
-      // User -> Friend
-      batch.set(doc(friendshipRef), {
-        userId: user.uid,
-        friendId: friendId,
-        createdAt: new Date()
+      // Find users that match the search term (case insensitive)
+      const searchTerm = newFriend.trim().toLowerCase();
+      const matchingUsers = allUsersSnapshot.docs.filter(doc => {
+        const userData = doc.data();
+        // Skip the current user
+        if (doc.id === user.uid) return false;
+        
+        // Check for partial matches in username or display name
+        const username = (userData.username || '').toLowerCase();
+        const displayName = (userData.displayName || '').toLowerCase();
+        const email = (userData.email || '').toLowerCase();
+        
+        return username.includes(searchTerm) || 
+               displayName.includes(searchTerm) || 
+               email.includes(searchTerm);
       });
       
-      // Friend -> User (optional, makes it bidirectional)
-      batch.set(doc(friendshipRef), {
-        userId: friendId,
-        friendId: user.uid,
-        createdAt: new Date()
+      // Format the search results
+      const formattedResults = matchingUsers.map(doc => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          displayName: data.displayName || 'User',
+          username: data.username || '',
+          email: data.email || ''
+        };
       });
       
-      await batch.commit();
-      
-      // Reset and reload
-      setNewFriend('');
-      setIsAddingFriend(false);
-      loadFriends();
-      Alert.alert('Success', 'Friend added successfully!');
+      // Update the search results state
+      setSearchResults(formattedResults);
     } catch (error) {
-      console.error('Error adding friend:', error);
-      Alert.alert('Error', 'Failed to add friend. Please try again.');
+      console.error('Error searching for friends:', error);
+      Alert.alert('Error', 'Failed to search for users. Please try again.');
+    } finally {
+      setIsSearching(false);
     }
   };
 
@@ -488,6 +469,91 @@ export default function Profile() {
     return shuffled.slice(0, count);
   };
 
+  // Function to add a friend by their ID
+  const addFriend = async (friendId: string) => {
+    if (!user) return;
+    
+    try {
+      // Check if already friends
+      const friendshipRef = collection(db, 'friendships');
+      const friendshipQ = query(
+        friendshipRef, 
+        where('userId', '==', user.uid),
+        where('friendId', '==', friendId)
+      );
+      const existingFriendship = await getDocs(friendshipQ);
+      
+      if (!existingFriendship.empty) {
+        Alert.alert('Already friends', 'You are already friends with this user.');
+        return;
+      }
+      
+      // Add friendship (both ways for simplicity)
+      const batch = writeBatch(db);
+      
+      // User -> Friend
+      batch.set(doc(friendshipRef), {
+        userId: user.uid,
+        friendId: friendId,
+        createdAt: new Date()
+      });
+      
+      // Friend -> User (optional, makes it bidirectional)
+      batch.set(doc(friendshipRef), {
+        userId: friendId,
+        friendId: user.uid,
+        createdAt: new Date()
+      });
+      
+      await batch.commit();
+      
+      // Reset and reload
+      setNewFriend('');
+      setSearchResults([]);
+      setIsAddingFriend(false);
+      loadFriends();
+      Alert.alert('Success', 'Friend added successfully!');
+    } catch (error) {
+      console.error('Error adding friend:', error);
+      Alert.alert('Error', 'Failed to add friend. Please try again.');
+    }
+  };
+  
+  // Function to show a selection dialog when multiple users match the search
+  const showFriendSelectionDialog = (users: any[]) => {
+    // Format the list of users for the alert
+    const userOptions = users.map(doc => {
+      const data = doc.data();
+      return {
+        id: doc.id,
+        label: data.displayName || data.username || data.email,
+        username: data.username ? `@${data.username}` : '',
+        email: data.email
+      };
+    });
+    
+    // Show the alert with options
+    Alert.alert(
+      'Select a user',
+      'Multiple users found. Please select one:',
+      [
+        ...userOptions.map(user => ({
+          text: `${user.label}${user.username ? ` ${user.username}` : ''}`,
+          onPress: () => {
+            addFriend(user.id);
+            // Clear the search field to allow a new search immediately
+            setNewFriend('');
+            setSearchResults([]);
+          }
+        })),
+        {
+          text: 'Cancel',
+          style: 'cancel' as 'cancel'
+        }
+      ]
+    );
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent}>
@@ -642,19 +708,72 @@ export default function Profile() {
           
           {isAddingFriend && (
             <View style={styles.addFriendContainer}>
-              <TextInput
-                style={styles.addFriendInput}
-                placeholder="Enter username or email"
-                value={newFriend}
-                onChangeText={setNewFriend}
-                autoCapitalize="none"
-              />
-              <TouchableOpacity 
-                style={styles.addFriendButton}
-                onPress={addFriendByUsername}
-              >
-                <Text style={styles.addFriendText}>Add</Text>
-              </TouchableOpacity>
+              <View style={styles.searchContainer}>
+                <TextInput
+                  style={styles.addFriendInput}
+                  placeholder={searchResults.length === 0 && newFriend.trim().length > 0 ? "No users found" : "Enter name, username or email"}
+                  value={newFriend}
+                  onChangeText={(text) => {
+                    setNewFriend(text);
+                    if (text.trim().length > 0) {
+                      addFriendByUsername();
+                    } else {
+                      setSearchResults([]);
+                    }
+                  }}
+                  autoCapitalize="none"
+                />
+                <TouchableOpacity 
+                  style={styles.addFriendButton}
+                  onPress={addFriendByUsername}
+                  disabled={isSearching}
+                >
+                  {isSearching ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Ionicons name="search" size={20} color="#fff" />
+                  )}
+                </TouchableOpacity>
+              </View>
+              
+              {/* Search results dropdown */}
+              {newFriend.trim().length > 0 && searchResults.length > 0 && (
+                <View style={styles.searchResultsContainer}>
+                  {searchResults.map((result) => (
+                    <TouchableOpacity
+                      key={result.id}
+                      style={styles.searchResultItem}
+                      onPress={() => {
+                        addFriend(result.id);
+                        // Clear search after selecting
+                        setNewFriend('');
+                        setSearchResults([]);
+                      }}
+                    >
+                      <View style={styles.searchResultAvatar}>
+                        <Ionicons name="person" size={14} color="#fff" />
+                      </View>
+                      <View style={styles.searchResultInfo}>
+                        <Text style={styles.searchResultName}>{result.displayName}</Text>
+                        {result.username && (
+                          <Text style={styles.searchResultUsername}>@{result.username}</Text>
+                        )}
+                      </View>
+                      <TouchableOpacity
+                        style={styles.addSearchResultButton}
+                        onPress={() => {
+                          addFriend(result.id);
+                          // Clear search after selecting
+                          setNewFriend('');
+                          setSearchResults([]);
+                        }}
+                      >
+                        <Ionicons name="add" size={18} color="#fff" />
+                      </TouchableOpacity>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
             </View>
           )}
           
@@ -947,6 +1066,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginBottom: 16,
   },
+  searchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
   addFriendInput: {
     flex: 1,
     backgroundColor: '#F5F5F5',
@@ -959,13 +1083,85 @@ const styles = StyleSheet.create({
   addFriendButton: {
     backgroundColor: COLORS.accent,
     borderRadius: 12,
-    paddingHorizontal: 16,
+    width: 40,
+    height: 40,
     justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
   },
   addFriendText: {
     color: '#fff',
     fontWeight: '600',
     fontSize: 14,
+  },
+  searchResultsContainer: {
+    position: 'absolute',
+    top: 50, // Position below the search input
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    backgroundColor: COLORS.card,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#F0F0F0',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+    overflow: 'hidden',
+    width: '100%',
+    maxHeight: 200,
+  },
+  searchResultItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  searchResultAvatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: COLORS.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 8,
+  },
+  searchResultInfo: {
+    flex: 1,
+  },
+  searchResultName: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: COLORS.text,
+  },
+  searchResultUsername: {
+    fontSize: 12,
+    color: COLORS.secondaryText,
+  },
+  addSearchResultButton: {
+    backgroundColor: COLORS.accent,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  noResultsContainer: {
+    padding: 16,
+    alignItems: 'center',
+  },
+  noResultsText: {
+    fontSize: 14,
+    color: COLORS.secondaryText,
+  },
+  noResultsSubtext: {
+    fontSize: 12,
+    color: COLORS.secondaryText,
+    marginTop: 4,
+    fontStyle: 'italic',
   },
   friendItem: {
     flexDirection: 'row',
@@ -976,15 +1172,6 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    marginRight: 12,
-  },
-  friendDefaultAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: COLORS.accent,
-    justifyContent: 'center',
-    alignItems: 'center',
     marginRight: 12,
   },
   friendInfo: {
@@ -1097,5 +1284,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 4,
+  },
+  friendDefaultAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
   },
 }); 
