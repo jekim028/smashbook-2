@@ -1,23 +1,46 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { collection, doc, DocumentData, getDoc, onSnapshot, query, Timestamp, updateDoc, where } from 'firebase/firestore';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Dimensions, FlatList, Linking, SafeAreaView, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { auth, db } from '../../constants/Firebase';
 import AddContentModal from './AddContentModal';
 import AddMediaModal from './AddMediaModal';
+import DayDivider from './DayDivider';
 import MediaDetailModal from './MediaDetailModal';
 import MemoryCard from './MemoryCard';
 import MemoryOptionsModal from './MemoryOptionsModal';
 
+// Helper function to get date string in a consistent format for grouping
+const getDateString = (timestamp: Timestamp): string => {
+  const date = timestamp.toDate();
+  return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
+};
+
+// Helper function to create a date from date string with proper timezone handling
+const createDateFromString = (dateString: string): Date => {
+  const [year, month, day] = dateString.split('-').map(Number);
+  return new Date(year, month - 1, day, 12, 0, 0); // Set to noon to avoid timezone issues
+};
+
+// Define our data structures for feed items
 interface Memory {
   id: string;
   type: 'photo' | 'note' | 'voice' | 'text' | 'reel' | 'tiktok' | 'restaurant' | 'location' | 'link';
   content: any;
   date: Timestamp;
   isFavorite: boolean;
-  sharedWith?: string[]; // Add sharedWith field as optional array of strings
-  userId: string; // Add userId field
+  sharedWith?: string[];
+  userId: string;
+}
+
+// Group of memories by date
+interface MemoryGroup {
+  type: 'group';
+  date: Date;
+  dateString: string;
+  memories: Memory[];
+  id: string;
 }
 
 // Updated colors to match the fish logo theme used in the profile page
@@ -31,6 +54,7 @@ const COLORS = {
   header: 'rgba(255, 255, 255, 0.8)',
   searchBackground: 'rgba(255, 255, 255, 0.9)',
   lightAccent: '#FFF0E6', // Lighter version of accent
+  divider: '#FF914D', // Divider color (brand orange)
 };
 
 const CARD_WIDTH = (Dimensions.get('window').width - 48) / 2;
@@ -38,105 +62,113 @@ const CARD_HEIGHT = CARD_WIDTH * 1.3;
 
 export const MemoryFeed: React.FC = () => {
   const router = useRouter();
-  const [currentDate, setCurrentDate] = React.useState(() => {
+  const [currentDate, setCurrentDate] = useState(() => {
     const today = new Date();
     return today;
   });
-  const [viewMode, setViewMode] = React.useState<'day' | 'month'>('day');
-  const [memories, setMemories] = React.useState<Memory[]>([]);
-  const [isSearchExpanded, setIsSearchExpanded] = React.useState(false);
-  const [searchQuery, setSearchQuery] = React.useState('');
-  const [isLoading, setIsLoading] = React.useState(true);
-  const searchBarWidth = React.useRef(new Animated.Value(0)).current;
-  const scrollViewRef = React.useRef<ScrollView>(null);
-  const { height: screenHeight } = Dimensions.get('window');
-  const [isAddContentModalVisible, setIsAddContentModalVisible] = React.useState(false);
-  const unsubscribeRef = React.useRef<(() => void) | null>(null);
+  const [viewMode, setViewMode] = useState<'day' | 'month'>('day');
+  const [memories, setMemories] = useState<Memory[]>([]);
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const searchBarWidth = useRef(new Animated.Value(0)).current;
+  const scrollViewRef = useRef<ScrollView>(null);
+  const { height: screenHeight, width: screenWidth } = Dimensions.get('window');
+  const [isAddContentModalVisible, setIsAddContentModalVisible] = useState(false);
+  const unsubscribeRef = useRef<(() => void) | null>(null);
   const [isFanMenuOpen, setIsFanMenuOpen] = useState(false);
   const [isAddMediaModalVisible, setIsAddMediaModalVisible] = useState(false);
   const [selectedMemory, setSelectedMemory] = useState<Memory | null>(null);
   const [isMemoryOptionsModalVisible, setIsMemoryOptionsModalVisible] = useState(false);
   const [isMediaDetailVisible, setIsMediaDetailVisible] = useState(false);
   const [mediaDetailIndex, setMediaDetailIndex] = useState(0);
+  
+  // State for floating date header
+  const [floatingDate, setFloatingDate] = useState<Date | null>(null);
+  const floatingDateOpacity = useRef(new Animated.Value(1)).current;
 
-  // Refs for each date section
-  const sectionRefs = React.useRef<{ [key: string]: View | null }>({});
+  // For tracking layout completion and loading states
+  const [contentHeight, setContentHeight] = useState(0);
+  const [containerHeight, setContainerHeight] = useState(0);
+  const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
+  const [isFullyLoaded, setIsFullyLoaded] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState("Getting everything ready...");
 
-  // Store Y offsets for each section
-  const sectionOffsets = React.useRef<{ [key: string]: number }>({});
+  // Array of fun loading messages
+  const loadingMessages = [
+    "Getting everything ready...",
+    "Fishing for memories...",
+    "Sorting your special moments...",
+    "Washing the dishes...",
+    "Polishing your memories...",
+    "Finding the perfect spot...",
+    "Organizing your treasures...",
+    "Preparing your timeline...",
+    "Making everything look pretty...",
+    "Almost there..."
+  ];
 
   // Helper to flatten all media into a single array for swiping
   const allMedia = memories.filter(m => ['photo', 'video', 'link'].includes(m.type));
 
-  // Sort memories oldest to newest (oldest at top, newest at bottom)
-  const sortedMemories = React.useMemo(() => {
-    return [...memories].sort((a, b) => {
-      const dateA = a.date.toDate().getTime();
-      const dateB = b.date.toDate().getTime();
-      return dateA - dateB; // oldest first
+  // Group memories by date for our feed
+  const memoryGroups = React.useMemo(() => {
+    // Group memories by date
+    const groups: { [dateKey: string]: Memory[] } = {};
+    
+    memories.forEach(memory => {
+      const dateKey = getDateString(memory.date);
+      if (!groups[dateKey]) {
+        groups[dateKey] = [];
+      }
+      groups[dateKey].push(memory);
     });
+    
+    // Convert to array of date groups
+    return Object.entries(groups).map(([dateString, mems]) => ({
+      type: 'group' as const,
+      date: createDateFromString(dateString),
+      dateString,
+      memories: mems.sort((a, b) => a.date.toDate().getTime() - b.date.toDate().getTime()), // Sort within group
+      id: `group-${dateString}`
+    })).sort((a, b) => a.date.getTime() - b.date.getTime()); // Sort groups oldest to newest
   }, [memories]);
+
+  // Set initial floating date to the newest date when memory groups change
+  useEffect(() => {
+    if (memoryGroups.length > 0) {
+      // Set the newest date (last item) as the initial floating date
+      const newestGroup = memoryGroups[memoryGroups.length - 1];
+      setFloatingDate(newestGroup.date);
+      console.log("Set initial floating date to", newestGroup.date.toLocaleDateString());
+    }
+  }, [memoryGroups]);
+
+  // Debug loading states
+  useEffect(() => {
+    console.log(`Loading state changed: isLoading=${isLoading}, isFullyLoaded=${isFullyLoaded}, hasScrolledToBottom=${hasScrolledToBottom}, groups=${memoryGroups.length}`);
+  }, [isLoading, isFullyLoaded, hasScrolledToBottom, memoryGroups.length]);
 
   // Calculate dimensions
   const numColumns = 2;
-  const screenWidth = Dimensions.get('window').width;
   const itemMargin = 6;
   const itemWidth = (screenWidth - (numColumns + 1) * itemMargin * 2) / numColumns;
 
-  // For tracking layout completion
-  const [contentHeight, setContentHeight] = useState(0);
-  const [containerHeight, setContainerHeight] = useState(0);
-  const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
-
-  // FlatList ref for scrolling
-  const flatListRef = React.useRef<FlatList>(null);
-
-  // Scroll to bottom after content has loaded and laid out
-  // This is more reliable than using useEffect with a timeout
-  useEffect(() => {
-    if (
-      flatListRef.current &&
-      contentHeight > 0 &&
-      containerHeight > 0 &&
-      !hasScrolledToBottom &&
-      sortedMemories.length > 0
-    ) {
-      // Calculate position to scroll to (bottom)
-      const scrollToY = Math.max(0, contentHeight - containerHeight);
-      
-      // Add a small delay to ensure rendering is complete
-      setTimeout(() => {
-        flatListRef.current?.scrollToOffset({
-          offset: scrollToY,
-          animated: false,
-        });
-        setHasScrolledToBottom(true);
-      }, 50);
-    }
-  }, [contentHeight, containerHeight, sortedMemories.length, hasScrolledToBottom]);
-
-  // Reset scroll state when data changes significantly
-  useEffect(() => {
-    if (sortedMemories.length > 0) {
-      setHasScrolledToBottom(false);
-    }
-  }, [sortedMemories.length]);
-
-  // Prepare data for FlatList
-  const renderItem = ({ item, index }: { item: Memory, index: number }) => {
+  // Render a memory item in our grid
+  const renderMemoryItem = (memory: Memory, gridIndex: number) => {
     // Calculate height based on content type
-    const itemHeight = item.type === 'photo' && item.content?.aspectRatio
-      ? itemWidth * (item.content.aspectRatio || 1)
+    const itemHeight = memory.type === 'photo' && memory.content?.aspectRatio
+      ? itemWidth * (memory.content.aspectRatio || 1)
       : itemWidth * 1.3;
     
     return (
       <MemoryCard
-        key={item.id}
-        type={item.type}
-        content={item.content}
-        isFavorite={item.isFavorite}
-        onPress={() => handleMemoryPress(item)}
-        onFavorite={() => handleFavorite(item.id)}
+        key={memory.id}
+        type={memory.type}
+        content={memory.content}
+        isFavorite={memory.isFavorite}
+        onPress={() => handleMemoryPress(memory)}
+        onFavorite={() => handleFavorite(memory.id)}
         style={{
           margin: itemMargin,
           width: itemWidth,
@@ -153,41 +185,114 @@ export const MemoryFeed: React.FC = () => {
     );
   };
 
-  // Helper function to get item layout for optimized scrolling
-  const getItemLayout = (data: any, index: number) => {
-    // Use average height for faster calculation
-    const averageHeight = CARD_HEIGHT;
-    // Calculate position based on grid layout (2 columns)
-    const row = Math.floor(index / numColumns);
-    return {
-      length: averageHeight,
-      offset: averageHeight * row,
-      index,
-    };
+  // Render an entire memory group with its divider
+  const renderMemoryGroup = ({ item }: { item: MemoryGroup }) => {
+    const { memories: groupMemories, date } = item;
+    
+    // Chunk memories into pairs for the grid
+    const rows = [];
+    for (let i = 0; i < groupMemories.length; i += numColumns) {
+      const rowMemories = groupMemories.slice(i, i + numColumns);
+      rows.push(rowMemories);
+    }
+    
+    return (
+      <View style={styles.memoryGroup}>
+        {/* Add the date divider at the TOP of the group */}
+        <DayDivider date={date} width={screenWidth} />
+        
+        {/* Render the memories in a grid */}
+        {rows.map((row, rowIndex) => (
+          <View key={`row-${rowIndex}`} style={styles.memoryRow}>
+            {row.map((memory, memIndex) => renderMemoryItem(memory, rowIndex * numColumns + memIndex))}
+            {/* Add empty space if the row isn't complete */}
+            {row.length < numColumns && Array.from({ length: numColumns - row.length }).map((_, i) => (
+              <View key={`empty-${i}`} style={{ width: itemWidth, margin: itemMargin }} />
+            ))}
+          </View>
+        ))}
+      </View>
+    );
   };
 
-  // Modified loadMoreContent to do nothing (no placeholder content)
-  const handleLoadMore = async () => {
-    // Do nothing - we don't want to load placeholder content
-    // Just using real content from Firebase
-    return;
-  };
+  // Cycle through loading messages
+  useEffect(() => {
+    if (isLoading) {
+      const messageInterval = setInterval(() => {
+        setLoadingMessage(loadingMessages[Math.floor(Math.random() * loadingMessages.length)]);
+      }, 1500);
+      
+      return () => clearInterval(messageInterval);
+    }
+  }, [isLoading]);
+
+  // FlatList ref for scrolling
+  const flatListRef = useRef<FlatList>(null);
+  
+  // Scroll to bottom after content has loaded and laid out
+  useEffect(() => {
+    if (
+      !isLoading &&
+      !isFullyLoaded &&
+      memoryGroups.length > 0
+    ) {
+      console.log("Setting isFullyLoaded to true directly");
+      // Use a short timeout to ensure the state changes are processed
+      setTimeout(() => {
+        setIsFullyLoaded(true);
+      }, 1000);
+    }
+  }, [isLoading, isFullyLoaded, memoryGroups.length]);
+
+  // Simple force exit loading after a maximum time
+  useEffect(() => {
+    const forceExitTimer = setTimeout(() => {
+      if (!isFullyLoaded) {
+        console.log("Force exiting loading screen after timeout");
+        setIsFullyLoaded(true);
+      }
+    }, 5000); // Force exit after 5 seconds no matter what
+    
+    return () => clearTimeout(forceExitTimer);
+  }, []);
 
   // FlatList viewability config
   const viewabilityConfig = {
     itemVisiblePercentThreshold: 10,
   };
 
-  // Update header date based on visible items
-  const onViewableItemsChanged = React.useRef(({ viewableItems }: { viewableItems: any[] }) => {
+  // Update floating date header based on visible items
+  const onViewableItemsChanged = useRef(({ viewableItems }: { viewableItems: any[] }) => {
     if (viewableItems && viewableItems.length > 0) {
-      // Find the bottommost visible item (highest index)
-      const bottomItem = viewableItems.reduce((prev, curr) => 
-        prev.index > curr.index ? prev : curr
-      );
+      // Find the topmost visible group by selecting the one with the smallest viewableItem.index
+      const topmostItem = viewableItems.reduce((topmost, current) => {
+        return (topmost.index < current.index) ? topmost : current;
+      });
       
-      if (bottomItem.item && bottomItem.item.date) {
-        setCurrentDate(bottomItem.item.date.toDate());
+      const dateGroup = topmostItem?.item as MemoryGroup;
+      if (dateGroup?.date) {
+        // Only update and animate if the date is changing
+        if (!floatingDate || 
+            floatingDate.getDate() !== dateGroup.date.getDate() || 
+            floatingDate.getMonth() !== dateGroup.date.getMonth() || 
+            floatingDate.getFullYear() !== dateGroup.date.getFullYear()) {
+          
+          // Fade out and back in when changing dates
+          Animated.sequence([
+            Animated.timing(floatingDateOpacity, {
+              toValue: 0,
+              duration: 150,
+              useNativeDriver: true
+            }),
+            Animated.timing(floatingDateOpacity, {
+              toValue: 1,
+              duration: 150,
+              useNativeDriver: true
+            })
+          ]).start();
+          
+          setFloatingDate(dateGroup.date);
+        }
       }
     }
   }).current;
@@ -213,7 +318,7 @@ export const MemoryFeed: React.FC = () => {
     // Set up real-time listener for user's own memories
     const ownMemoriesUnsubscribe = onSnapshot(q, 
       (snapshot) => {
-        snapshot.forEach((doc) => {
+      snapshot.forEach((doc) => {
           allMemoriesMap.set(doc.id, { id: doc.id, ...doc.data() } as Memory);
         });
         
@@ -227,7 +332,7 @@ export const MemoryFeed: React.FC = () => {
       },
       (error) => {
         console.error('Error fetching own memories:', error);
-        setIsLoading(false);
+      setIsLoading(false);
       }
     );
 
@@ -284,11 +389,17 @@ export const MemoryFeed: React.FC = () => {
           return dateB - dateA; // descending order (newest first)
         }));
         
-        setIsLoading(false);
+        // Simply end loading state and set fully loaded to true
+        console.log("Memories loaded, ending loading state");
+        setTimeout(() => {
+          setIsLoading(false);
+          setIsFullyLoaded(true); // Directly set to true to exit loading screen
+        }, 1500); // Allow time for the animation
       },
       (error) => {
         console.error('Error fetching shared memories:', error);
         setIsLoading(false);
+        setIsFullyLoaded(true);
       }
     );
 
@@ -307,7 +418,7 @@ export const MemoryFeed: React.FC = () => {
   }, []);
 
   // Update currentDate when memories change to match the most recent content
-  React.useEffect(() => {
+  useEffect(() => {
     if (memories.length > 0) {
       const mostRecentDate = new Date(Math.max(...memories.map(m => m.date.toDate().getTime())));
       setCurrentDate(mostRecentDate);
@@ -341,32 +452,6 @@ export const MemoryFeed: React.FC = () => {
       friction: 7,
     }).start();
     setIsSearchExpanded(!isSearchExpanded);
-  };
-
-  const handleScroll = (event: any) => {
-    const scrollY = event.nativeEvent.contentOffset.y;
-    let closestKey: string | null = null;
-    let closestOffset = -Infinity;
-    Object.entries(sectionOffsets.current).forEach(([dateKey, offset]) => {
-      if (offset <= scrollY && offset > closestOffset) {
-        closestOffset = offset;
-        closestKey = dateKey;
-      }
-    });
-    if (closestKey) {
-      setCurrentDate(new Date(closestKey));
-    }
-  };
-
-  const scrollToToday = () => {
-    scrollViewRef.current?.scrollTo({ y: 0, animated: true });
-  };
-
-  const scrollToDate = (date: Date) => {
-    const today = new Date();
-    const diffDays = Math.floor((today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-    const y = diffDays * screenHeight;
-    scrollViewRef.current?.scrollTo({ y, animated: true });
   };
 
   const handleMemoryPress = (memory: Memory) => {
@@ -447,15 +532,12 @@ export const MemoryFeed: React.FC = () => {
   // Scroll to the top of the 'today' section (most recent date) when component mounts
   React.useEffect(() => {
     if (scrollViewRef.current && memories.length > 0) {
-      // Find the offset for the most recent date (today)
-      const dateKeys = Object.keys(memoriesByDate);
-      const todayKey = dateKeys[dateKeys.length - 1];
-      const offset = sectionOffsets.current[todayKey] || 0;
+      // Instead of trying to use section offsets, just scroll to the beginning
       setTimeout(() => {
-        scrollViewRef.current?.scrollTo({ y: offset, animated: false });
+        scrollViewRef.current?.scrollTo({ y: 0, animated: false });
       }, 100);
     }
-  }, [memoriesByDate]);
+  }, [memories.length]);
 
   const handleLinkPress = async (url: string) => {
     try {
@@ -496,116 +578,7 @@ export const MemoryFeed: React.FC = () => {
 
   const refreshMemories = () => {
     // This will be triggered after successful upload to refresh the memories list
-    if (unsubscribeRef.current) {
-      unsubscribeRef.current();
-      unsubscribeRef.current = null;
-    }
-    
-    setIsLoading(true);
-    
-    const user = auth.currentUser;
-    if (!user) {
-      setMemories([]);
-      setIsLoading(false);
-      return;
-    }
-
-    // Create a map to store all memories by ID to prevent duplicates
-    let allMemoriesMap = new Map();
-
-    // Set up real-time listener for user's own memories
-    const memoriesRef = collection(db, 'memories');
-    const q = query(
-      memoriesRef,
-      where('userId', '==', user.uid)
-    );
-
-    const ownMemoriesUnsubscribe = onSnapshot(q, 
-      (snapshot) => {
-        snapshot.forEach((doc) => {
-          allMemoriesMap.set(doc.id, { id: doc.id, ...doc.data() } as Memory);
-        });
-        
-        // Update memories state with all memories from the map
-        const allMemories = Array.from(allMemoriesMap.values());
-        setMemories(allMemories.sort((a, b) => {
-          const dateA = a.date.toDate().getTime();
-          const dateB = b.date.toDate().getTime();
-          return dateB - dateA; // descending order (newest first)
-        }));
-      },
-      (error) => {
-        console.error('Error fetching own memories:', error);
-        setIsLoading(false);
-      }
-    );
-
-    // Set up real-time listener for shared memories
-    const sharedMemoriesRef = collection(db, 'memories');
-    const sharedQ = query(
-      sharedMemoriesRef,
-      where('sharedWith', 'array-contains', user.uid)
-    );
-
-    const sharedMemoriesUnsubscribe = onSnapshot(sharedQ,
-      async (snapshot) => {
-        // Process each shared memory
-        const sharedMemoryPromises = snapshot.docs.map(async (docSnapshot) => {
-          const data = docSnapshot.data();
-          const memory = { id: docSnapshot.id, ...data } as Memory;
-          
-          // If this is a shared memory, get the user info of who shared it
-          if (data.userId) {
-            try {
-              const userDocRef = doc(db, 'users', data.userId);
-              const userDoc = await getDoc(userDocRef);
-              if (userDoc.exists()) {
-                const userData = userDoc.data() as DocumentData;
-                memory.content = {
-                  ...memory.content,
-                  sharedBy: {
-                    photoURL: userData.photoURL || null,
-                    displayName: userData.displayName || null
-                  }
-                };
-              }
-            } catch (error) {
-              console.error('Error fetching user info for shared memory:', error);
-            }
-          }
-          
-          return memory;
-        });
-
-        // Wait for all shared memory data to be processed
-        const sharedMemories = await Promise.all(sharedMemoryPromises);
-        
-        // Add shared memories to the map
-        sharedMemories.forEach(memory => {
-          allMemoriesMap.set(memory.id, memory);
-        });
-
-        // Update memories state with all memories from the map
-        const allMemories = Array.from(allMemoriesMap.values());
-        setMemories(allMemories.sort((a, b) => {
-          const dateA = a.date.toDate().getTime();
-          const dateB = b.date.toDate().getTime();
-          return dateB - dateA; // descending order (newest first)
-        }));
-        
-        setIsLoading(false);
-      },
-      (error) => {
-        console.error('Error fetching shared memories:', error);
-        setIsLoading(false);
-      }
-    );
-
-    // Store both unsubscribe functions
-    unsubscribeRef.current = () => {
-      ownMemoriesUnsubscribe();
-      sharedMemoriesUnsubscribe();
-    };
+    // No need to do anything since Firebase listener will update automatically
   };
 
   const handleContentSizeChange = (width: number, height: number) => {
@@ -616,10 +589,16 @@ export const MemoryFeed: React.FC = () => {
     setContainerHeight(event.nativeEvent.layout.height);
   };
 
-  if (isLoading) {
+  if (isLoading || !isFullyLoaded) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" />
+        <View style={styles.loadingContent}>
+          <View style={styles.logoContainer}>
+            <Ionicons name="fish" size={40} color={COLORS.accent} />
+          </View>
+          <ActivityIndicator size="large" color={COLORS.accent} style={styles.loadingIndicator} />
+          <Text style={styles.loadingText}>{loadingMessage}</Text>
+        </View>
       </View>
     );
   }
@@ -627,7 +606,7 @@ export const MemoryFeed: React.FC = () => {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        {/* Updated Header - Connected to Content */}
+        {/* Updated Header with floating date */}
         <View style={[
           styles.header, 
           { 
@@ -637,12 +616,28 @@ export const MemoryFeed: React.FC = () => {
         ]}>
           <View style={styles.headerLeft}>
             <Text style={styles.logoText}>Smashbook</Text>
-            <Text style={styles.dateText}>
-              {currentDate.toLocaleDateString('en-US', {
+            {/* Animated floating date with fade transition */}
+            <Animated.Text 
+              style={[
+                styles.dateText, 
+                { 
+                  opacity: floatingDateOpacity,
+                  transform: [{ translateY: floatingDateOpacity.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [5, 0]
+                  })}]
+                }
+              ]}
+            >
+              {floatingDate?.toLocaleDateString('en-US', {
+                month: 'long',
+                day: 'numeric',
+                year: 'numeric'
+              }) || currentDate.toLocaleDateString('en-US', {
                 month: 'long',
                 day: 'numeric'
               })}
-            </Text>
+            </Animated.Text>
           </View>
           <View style={styles.headerRight}>
             <TouchableOpacity style={styles.headerButton} onPress={navigateToFavorites}>
@@ -655,7 +650,7 @@ export const MemoryFeed: React.FC = () => {
               <Ionicons name="search-outline" size={24} color={COLORS.text} />
             </TouchableOpacity>
             <TouchableOpacity 
-              style={styles.headerButton}
+  style={styles.headerButton}
               onPress={() => router.push('/profile')}
             >
               <View style={styles.profileButton}>
@@ -678,13 +673,13 @@ export const MemoryFeed: React.FC = () => {
         ]}>
           <View style={styles.searchInputContainer}>
             <Ionicons name="search" size={18} color={COLORS.secondaryText} style={styles.searchIcon} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Search memories..."
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              placeholderTextColor={COLORS.secondaryText}
-            />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search memories..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholderTextColor={COLORS.secondaryText}
+          />
           </View>
           {isSearchExpanded && (
             <TouchableOpacity 
@@ -696,23 +691,39 @@ export const MemoryFeed: React.FC = () => {
           )}
         </Animated.View>
 
+        {/* Memory groups with dividers */}
         <FlatList
           ref={flatListRef}
-          data={sortedMemories}
-          renderItem={renderItem}
+          data={memoryGroups}
+          renderItem={renderMemoryGroup}
           keyExtractor={item => item.id}
-          numColumns={numColumns}
           showsVerticalScrollIndicator={false}
-          contentContainerStyle={styles.gridContentContainer}
+          contentContainerStyle={styles.contentContainer}
           onViewableItemsChanged={onViewableItemsChanged}
           viewabilityConfig={viewabilityConfig}
           onContentSizeChange={handleContentSizeChange}
           onLayout={handleLayout}
-          maxToRenderPerBatch={10}
-          windowSize={10}
+          maxToRenderPerBatch={5}
+          windowSize={5}
+          updateCellsBatchingPeriod={50}
           removeClippedSubviews={true}
-          getItemLayout={getItemLayout}
-          initialNumToRender={30} // Render more items initially to ensure content fills the screen
+          initialNumToRender={5}
+          initialScrollIndex={memoryGroups.length > 2 ? Math.max(0, memoryGroups.length - 1) : undefined}
+          maintainVisibleContentPosition={{
+            minIndexForVisible: 0,
+            autoscrollToTopThreshold: 0
+          }}
+          // Use getItemLayout for smoother scrolling
+          getItemLayout={(data, index) => {
+            // Estimate average height for each group
+            // This helps FlatList optimize rendering
+            const averageHeight = 250; // Adjust based on your typical group size
+            return {
+              length: averageHeight,
+              offset: averageHeight * index,
+              index
+            };
+          }}
         />
 
         {/* Fan-out menu */}
@@ -737,8 +748,8 @@ export const MemoryFeed: React.FC = () => {
               </View>
               <Text style={styles.fanMenuText}>Upload Media</Text>
             </TouchableOpacity>
-          </View>
-        )}
+              </View>
+          )}
 
         {/* Add Content Button with Fan-out menu */}
         <TouchableOpacity 
@@ -748,6 +759,7 @@ export const MemoryFeed: React.FC = () => {
           <Ionicons name={isFanMenuOpen ? "close" : "add"} size={24} color="#fff" />
         </TouchableOpacity>
 
+        {/* All required modals */}
         <AddContentModal
           visible={isAddContentModalVisible}
           onClose={() => setIsAddContentModalVisible(false)}
@@ -772,10 +784,7 @@ export const MemoryFeed: React.FC = () => {
         <MediaDetailModal
           visible={isMediaDetailVisible}
           mediaList={memories
-            // Filter to include only media types
             .filter(m => ['photo', 'video', 'link'].includes(m.type))
-            // Sort from oldest (index 0) to newest (last index)
-            // This ensures swiping left shows newer content and right shows older content
             .sort((a, b) => {
               const dateA = a.date.toDate().getTime();
               const dateB = b.date.toDate().getTime();
@@ -783,7 +792,7 @@ export const MemoryFeed: React.FC = () => {
             })
             .map(m => ({
               id: m.id,
-              type: m.type === 'reel' ? 'video' : m.type, // treat 'reel' as 'video'
+              type: m.type === 'reel' ? 'video' : m.type,
               content: {
                 ...m.content,
                 sharedBy: m.content?.sharedBy || null,
@@ -796,12 +805,12 @@ export const MemoryFeed: React.FC = () => {
               comments: m.content?.comments || [],
               date: m.date,
               sharedWith: m.sharedWith || [],
-              userId: m.userId, // Add this field
+              userId: m.userId,
             }))}
           initialIndex={mediaDetailIndex}
           onClose={() => setIsMediaDetailVisible(false)}
           onFavorite={handleFavorite}
-          currentUserId={auth.currentUser?.uid} // Add this prop
+          currentUserId={auth.currentUser?.uid}
           onUpdate={(updatedMedia) => {
             // Update the memory in our local state if we can find it
             const memoryToUpdate = memories.find(m => m.id === updatedMedia.id);
@@ -870,9 +879,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   dateText: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 15,
     color: COLORS.secondaryText,
+    fontWeight: '600',
+    marginTop: 4,
   },
   searchContainer: {
     overflow: 'hidden',
@@ -905,16 +915,46 @@ const styles = StyleSheet.create({
     top: 17,
     padding: 4,
   },
-  gridContentContainer: {
-    paddingBottom: 24,
-    paddingHorizontal: 8,
+  contentContainer: {
+    paddingBottom: 80, // Allow space for the add button
+  },
+  memoryGroup: {
+    marginBottom: 20, // More space between groups
+  },
+  memoryRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    marginHorizontal: 6, // Use hardcoded value instead of referencing itemMargin
   },
   loadingContainer: {
-    padding: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
     flex: 1,
-    minHeight: 300,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: COLORS.background,
+  },
+  loadingContent: {
+    flexDirection: 'column',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    paddingVertical: 24,
+    paddingHorizontal: 30,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+  loadingIndicator: {
+    marginBottom: 16,
+    height: 50,
+    width: 50,
+  },
+  loadingText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: COLORS.text,
+    textAlign: 'center',
   },
   addContentButton: {
     position: 'absolute',
@@ -973,6 +1013,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: COLORS.text,
+  },
+  logoContainer: {
+    marginBottom: 20,
+    backgroundColor: 'white',
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
 });
 
