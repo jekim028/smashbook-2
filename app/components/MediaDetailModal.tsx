@@ -15,12 +15,12 @@ import {
   Share,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { db } from '../../constants/Firebase';
+import CommentsModal, { Comment } from './CommentsModal';
 // Temporarily disable image caching
 // import { getCachedImageUri, preloadImages } from '../utils/imageCache';
 
@@ -118,6 +118,11 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
   const [selectedFriends, setSelectedFriends] = useState<string[]>([]);
   const [showFriendSelection, setShowFriendSelection] = useState(false);
   const translateY = useRef(new Animated.Value(0)).current;
+
+  // New state for comments functionality
+  const [showCommentsModal, setShowCommentsModal] = useState(false);
+  const [mediaComments, setMediaComments] = useState<{[key: string]: Comment[]}>({});
+  const [commentCount, setCommentCount] = useState<{[key: string]: number}>({});
 
   const panResponder = useRef(
     PanResponder.create({
@@ -557,9 +562,87 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
     );
   };
 
+  // Fetch comments when media changes
+  useEffect(() => {
+    if (!visible || !currentMedia?.id) return;
+    
+    const fetchComments = async () => {
+      try {
+        const mediaRef = doc(db, 'memories', currentMedia.id);
+        const mediaDoc = await getDoc(mediaRef);
+        
+        if (mediaDoc.exists()) {
+          const data = mediaDoc.data();
+          if (data.comments) {
+            setMediaComments(prev => ({
+              ...prev,
+              [currentMedia.id]: data.comments
+            }));
+            setCommentCount(prev => ({
+              ...prev,
+              [currentMedia.id]: data.comments.length
+            }));
+          } else {
+            // Initialize with empty array if no comments exist
+            setMediaComments(prev => ({
+              ...prev,
+              [currentMedia.id]: []
+            }));
+            setCommentCount(prev => ({
+              ...prev,
+              [currentMedia.id]: 0
+            }));
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching comments:', error);
+      }
+    };
+    
+    fetchComments();
+  }, [visible, currentMedia?.id]);
+  
+  // Toggle comment modal
+  const toggleCommentsModal = () => {
+    setShowCommentsModal(!showCommentsModal);
+  };
+  
+  // Handle new comment added
+  const handleCommentAdded = (newComment: Comment) => {
+    if (!currentMedia?.id) return;
+    
+    // Optimistically update UI
+    setMediaComments(prev => {
+      const currentComments = prev[currentMedia.id] || [];
+      const updatedComments = [newComment, ...currentComments];
+      
+      return {
+        ...prev,
+        [currentMedia.id]: updatedComments
+      };
+    });
+    
+    // Update comment count
+    setCommentCount(prev => ({
+      ...prev,
+      [currentMedia.id]: (prev[currentMedia.id] || 0) + 1
+    }));
+  };
+  
+  // Get comments for the current media
+  const getCurrentMediaComments = () => {
+    return currentMedia?.id ? (mediaComments[currentMedia.id] || []) : [];
+  };
+  
+  // Get comment count for specific media
+  const getCommentCountForMedia = (mediaId: string) => {
+    return commentCount[mediaId] || 0;
+  };
+
   const renderItem = ({ item, index }: { item: MediaItem, index: number }) => {    
     // Get comments for this specific item
-    const mediaComments = getCommentsForMedia(item.id);
+    const itemComments = mediaComments[item.id] || [];
+    const count = getCommentCountForMedia(item.id);
     
     return (
       <View style={styles.mediaItemContainer}>
@@ -596,9 +679,14 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.iconButton}
-                  onPress={toggleCommentInput}
+                  onPress={toggleCommentsModal}
                 >
-                  <Ionicons name="chatbubble-outline" size={26} color="#222" />
+                  <View style={styles.commentIconContainer}>
+                    <Ionicons name="chatbubble-outline" size={26} color="#222" />
+                    {count > 0 && (
+                      <Text style={styles.commentCount}>{count}</Text>
+                    )}
+                  </View>
                 </TouchableOpacity>
               </View>
             </View>
@@ -670,54 +758,29 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
               </Text>
             )}
             
-            {/* Comments section */}
-            <View style={styles.commentSection}>
-              {/* Comment input - show when toggled or if there are comments */}
-              {(showCommentInput || mediaComments.length > 0) && (
-                <View style={styles.commentInputContainer}>
-                  <TextInput
-                    style={styles.commentInput}
-                    placeholder="Add a comment..."
-                    value={comment}
-                    onChangeText={setComment}
-                    onSubmitEditing={handleCommentSubmit}
-                    returnKeyType="send"
-                    autoFocus={showCommentInput}
-                  />
-                  <TouchableOpacity 
-                    style={[
-                      styles.sendButton,
-                      comment.trim() ? styles.sendButtonActive : null
-                    ]}
-                    onPress={handleCommentSubmit}
-                    disabled={!comment.trim()}
-                  >
-                    <Ionicons 
-                      name="send" 
-                      size={20} 
-                      color={comment.trim() ? "#FF914D" : "#CCC"} 
-                    />
+            {/* Comments preview */}
+            {itemComments.length > 0 && (
+              <View style={styles.commentsPreviewContainer}>
+                {/* Show up to 2 most recent comments */}
+                {itemComments.slice(0, 2).map((comment, idx) => (
+                  <View key={comment.id} style={styles.previewCommentItem}>
+                    <Text style={styles.previewCommentText}>
+                      <Text style={styles.previewUsername}>{comment.username}</Text>{' '}
+                      {comment.text}
+                    </Text>
+                  </View>
+                ))}
+                
+                {/* "View all comments" link if there are more than 2 comments */}
+                {itemComments.length > 2 && (
+                  <TouchableOpacity onPress={toggleCommentsModal}>
+                    <Text style={styles.viewAllCommentsLink}>
+                      View all {itemComments.length} comments
+                    </Text>
                   </TouchableOpacity>
-                </View>
-              )}
-              
-              {/* Display existing comments if any */}
-              {mediaComments.length > 0 && (
-                <View style={styles.commentsList}>
-                  {mediaComments.map((commentItem, idx) => (
-                    <View key={idx} style={styles.commentItem}>
-                      <Text style={styles.commentText}>{commentItem.text}</Text>
-                      <Text style={styles.commentTimestamp}>
-                        {new Date(commentItem.timestamp).toLocaleTimeString([], {
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              )}
-            </View>
+                )}
+              </View>
+            )}
           </View>
         </ScrollView>
       </View>
@@ -1071,7 +1134,12 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
   };
 
   return (
-    <Modal visible={visible} animationType="none" onRequestClose={onClose}>
+    <Modal
+      visible={visible}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={onClose}
+    >
       <View style={[styles.container, { paddingTop: insets.top }]}>
         {/* Back button */}
         <TouchableOpacity
@@ -1117,6 +1185,28 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
         />
       </View>
 
+      {/* Comments Modal */}
+      {currentMedia && (
+        <CommentsModal 
+          visible={showCommentsModal}
+          onClose={() => setShowCommentsModal(false)}
+          mediaId={currentMedia.id}
+          comments={getCurrentMediaComments()}
+          onCommentAdded={handleCommentAdded}
+          onCommentsUpdated={(updatedComments) => {
+            if (!currentMedia?.id) return;
+            setMediaComments(prev => ({
+              ...prev,
+              [currentMedia.id]: updatedComments
+            }));
+            setCommentCount(prev => ({
+              ...prev,
+              [currentMedia.id]: updatedComments.length
+            }));
+          }}
+        />
+      )}
+      
       <Modal
         visible={showSharedWithModal}
         animationType="slide"
@@ -1511,6 +1601,36 @@ const styles = StyleSheet.create({
     left: 16,
     top: 40,
     padding: 8,
+  },
+  commentIconContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  commentCount: {
+    fontSize: 12,
+    color: COLORS.text,
+    marginLeft: 4,
+    fontWeight: '500',
+  },
+  commentsPreviewContainer: {
+    marginTop: 12,
+    paddingHorizontal: 4,
+  },
+  previewCommentItem: {
+    marginBottom: 6,
+  },
+  previewCommentText: {
+    fontSize: 14,
+    color: COLORS.text,
+    lineHeight: 18,
+  },
+  previewUsername: {
+    fontWeight: '600',
+  },
+  viewAllCommentsLink: {
+    fontSize: 14,
+    color: COLORS.secondaryText,
+    marginTop: 4,
   },
 });
 
