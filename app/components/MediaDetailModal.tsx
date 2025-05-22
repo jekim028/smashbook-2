@@ -691,6 +691,13 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
               </View>
             </View>
 
+            {/* Caption - ensure it's visible when present */}
+            {(item.caption || item.content?.caption) && (
+              <Text style={styles.caption}>
+                {item.caption || item.content?.caption}
+              </Text>
+            )}
+
             {/* Shared by section */}
             {item.content?.sharedBy && (
               <View style={styles.sharedByContainer}>
@@ -749,13 +756,6 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
                   </TouchableOpacity>
                 )}
               </TouchableOpacity>
-            )}
-
-            {/* Caption - ensure it's visible when present */}
-            {(item.caption || item.content?.caption) && (
-              <Text style={styles.caption}>
-                {item.caption || item.content?.caption}
-              </Text>
             )}
             
             {/* Comments preview */}

@@ -4,21 +4,21 @@ import * as ImagePicker from 'expo-image-picker';
 import { addDoc, collection, doc, getDoc, getDocs, query, Timestamp, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
-  Alert,
-  FlatList,
-  Image,
-  Keyboard,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View
+    ActivityIndicator,
+    Alert,
+    FlatList,
+    Image,
+    Keyboard,
+    KeyboardAvoidingView,
+    Modal,
+    Platform,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    TouchableWithoutFeedback,
+    View
 } from 'react-native';
 import { auth, db } from '../../constants/Firebase';
 
@@ -321,6 +321,22 @@ const AddMediaModal: React.FC<AddMediaModalProps> = ({ visible, onClose, onSucce
       // Simple file check
       await checkFileSize(selectedMedia.uri);
       
+      // Log what we're storing
+      console.log('Uploading media with data:', {
+        userId: auth.currentUser.uid,
+        type: selectedMedia.type,
+        caption: caption,
+        content: {
+          uri: selectedMedia.uri,
+          thumbnail: selectedMedia.uri,
+          width: selectedMedia.width,
+          height: selectedMedia.height,
+          aspectRatio: selectedMedia.aspectRatio,
+          exifDate: selectedMedia.exifDate,
+          caption: caption // Check if this is redundant
+        }
+      });
+      
       // Create the memory document with simpler structure
       const memoryRef = await addDoc(collection(db, 'memories'), {
         userId: auth.currentUser.uid,
@@ -333,7 +349,8 @@ const AddMediaModal: React.FC<AddMediaModalProps> = ({ visible, onClose, onSucce
           width: selectedMedia.width,
           height: selectedMedia.height,
           aspectRatio: selectedMedia.aspectRatio,
-          exifDate: selectedMedia.exifDate
+          exifDate: selectedMedia.exifDate,
+          caption: caption // Also store in content for backward compatibility
         },
         date: Timestamp.now(),
         createdAt: Timestamp.now(),
