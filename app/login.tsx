@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import React, { useState } from 'react';
-import { ActivityIndicator, Alert, Animated, Easing, Image, Keyboard, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
+import { ActivityIndicator, Alert, Animated, Easing, Image, Keyboard, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, TouchableWithoutFeedback, View } from 'react-native';
 import { auth, db } from '../constants/Firebase';
 
 export default function LoginScreen() {
@@ -72,82 +72,100 @@ export default function LoginScreen() {
   };
 
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <View style={styles.container}>
-        <Animated.View style={{ alignItems: 'center', transform: [{ scale: logoAnim }] }}>
-          <Image source={require('../assets/images/smashbook-logo.png')} style={styles.logo} resizeMode="contain" />
-          <Text style={styles.tagline}>Collect the past. Color the present.</Text>
-        </Animated.View>
-        <Text style={styles.title}>{isLogin ? 'Login' : 'Sign Up'}</Text>
-
-        {!isLogin && (
-          <>
-            <TextInput
-              style={styles.input}
-              placeholder="First Name"
-              value={firstName}
-              onChangeText={setFirstName}
-              autoCapitalize="words"
-              placeholderTextColor="#A0A0A0"
-            />
-            <TextInput
-              style={styles.input}
-              placeholder="Last Name"
-              value={lastName}
-              onChangeText={setLastName}
-              autoCapitalize="words"
-              placeholderTextColor="#A0A0A0"
-            />
-          </>
-        )}
-
-        <TextInput
-          style={styles.input}
-          placeholder="Email"
-          value={email}
-          onChangeText={setEmail}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          placeholderTextColor="#A0A0A0"
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Password"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          placeholderTextColor="#A0A0A0"
-        />
-        
-        <TouchableOpacity 
-          style={[styles.button, isLoading && styles.buttonDisabled]} 
-          onPress={handleAuth}
-          disabled={isLoading}
-          activeOpacity={0.85}
+    <KeyboardAvoidingView 
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      style={styles.container}
+      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+    >
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          {isLoading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={styles.buttonText}>{isLogin ? 'Login' : 'Sign Up'}</Text>
-          )}
-        </TouchableOpacity>
+          <View style={styles.innerContainer}>
+            <Animated.View style={{ alignItems: 'center', transform: [{ scale: logoAnim }] }}>
+              <Image source={require('../assets/images/smashbook-logo.png')} style={styles.logo} resizeMode="contain" />
+              <Text style={styles.tagline}>Collect the past. Color the present.</Text>
+            </Animated.View>
+            <Text style={styles.title}>{isLogin ? 'Login' : 'Sign Up'}</Text>
 
-        <TouchableOpacity onPress={handleToggle} activeOpacity={0.7}>
-          <Text style={styles.switchText}>
-            {isLogin ? 'Need an account? Sign Up' : 'Have an account? Login'}
-          </Text>
-        </TouchableOpacity>
-      </View>
-    </TouchableWithoutFeedback>
+            {!isLogin && (
+              <>
+                <TextInput
+                  style={styles.input}
+                  placeholder="First Name"
+                  value={firstName}
+                  onChangeText={setFirstName}
+                  autoCapitalize="words"
+                  placeholderTextColor="#A0A0A0"
+                />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Last Name"
+                  value={lastName}
+                  onChangeText={setLastName}
+                  autoCapitalize="words"
+                  placeholderTextColor="#A0A0A0"
+                />
+              </>
+            )}
+
+            <TextInput
+              style={styles.input}
+              placeholder="Email"
+              value={email}
+              onChangeText={setEmail}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              placeholderTextColor="#A0A0A0"
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Password"
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+              placeholderTextColor="#A0A0A0"
+            />
+            
+            <TouchableOpacity 
+              style={[styles.button, isLoading && styles.buttonDisabled]} 
+              onPress={handleAuth}
+              disabled={isLoading}
+              activeOpacity={0.85}
+            >
+              {isLoading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>{isLogin ? 'Login' : 'Sign Up'}</Text>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={handleToggle} activeOpacity={0.7}>
+              <Text style={styles.switchText}>
+                {isLogin ? 'Need an account? Sign Up' : 'Have an account? Login'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </TouchableWithoutFeedback>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#fdfcf8', // matches logo background
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  innerContainer: {
+    flex: 1,
     justifyContent: 'center',
     padding: 20,
-    backgroundColor: '#fdfcf8', // matches logo background
   },
   logo: {
     width: 120,
