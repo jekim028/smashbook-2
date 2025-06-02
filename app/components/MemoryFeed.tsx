@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { collection, doc, DocumentData, getDoc, onSnapshot, query, Timestamp, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Dimensions, FlatList, Linking, SafeAreaView, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Animated, Dimensions, FlatList, Keyboard, Linking, SafeAreaView, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { auth, db } from '../../constants/Firebase';
 import AddContentModal from './AddContentModal';
 import AddMediaModal from './AddMediaModal';
@@ -488,12 +488,22 @@ export const MemoryFeed: React.FC = () => {
 
   const toggleSearch = () => {
     const toValue = isSearchExpanded ? 0 : 1;
-    Animated.spring(searchBarWidth, {
-      toValue,
-      useNativeDriver: false,
-      tension: 50,
-      friction: 7,
-    }).start();
+    if (!isSearchExpanded) {
+      Animated.spring(searchBarWidth, {
+        toValue,
+        useNativeDriver: false,
+        tension: 50,
+        friction: 7,
+      }).start();
+    } else {
+      Keyboard.dismiss();
+      Animated.spring(searchBarWidth, {
+        toValue,
+        useNativeDriver: false,
+        tension: 50,
+        friction: 7,
+      }).start();
+    }
     setIsSearchExpanded(!isSearchExpanded);
   };
 
