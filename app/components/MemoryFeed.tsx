@@ -121,6 +121,8 @@ export const MemoryFeed: React.FC = () => {
     { label: 'Spotify', value: 'Spotify', filterType: 'publisher' },
     { label: 'TikTok', value: 'TikTok', filterType: 'publisher' },
     { label: 'Pinterest', value: 'Pinterest', filterType: 'publisher' },
+    { label: 'Shared with me', value: 'shared_with_me', filterType: 'sharing' },
+    { label: 'Shared by me', value: 'shared_by_me', filterType: 'sharing' },
   ];
 
   // Filter memories based on selected filter
@@ -132,13 +134,32 @@ export const MemoryFeed: React.FC = () => {
 
     if (selectedOption.filterType === 'type') {
       return memories.filter(memory => memory.type === selectedFilter);
-    } else {
+    } else if (selectedOption.filterType === 'publisher') {
       // For publisher-based filtering, check the content.publisher field of link-type memories
       return memories.filter(memory => 
         memory.type === 'link' && 
         memory.content?.publisher === selectedOption.value
       );
+    } else if (selectedOption.filterType === 'sharing') {
+      const currentUserId = auth.currentUser?.uid;
+      if (!currentUserId) return memories;
+
+      if (selectedOption.value === 'shared_with_me') {
+        // Show memories where the current user is in sharedWith array but not the owner
+        return memories.filter(memory => 
+          memory.userId !== currentUserId && 
+          memory.sharedWith?.includes(currentUserId)
+        );
+      } else if (selectedOption.value === 'shared_by_me') {
+        // Show memories that the current user owns and has shared with others
+        return memories.filter(memory => 
+          memory.userId === currentUserId && 
+          memory.sharedWith && 
+          memory.sharedWith.length > 0
+        );
+      }
     }
+    return memories;
   }, [memories, selectedFilter]);
 
   // Group memories by date for our feed

@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
 import { Dimensions, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { auth } from '../../constants/Firebase';
 import { getLinkMetadata } from '../utils/linkPreview';
 // Temporarily disable image caching
 // import { getCachedImageUri } from '../utils/imageCache';
@@ -49,6 +50,9 @@ const MemoryCard: React.FC<MemoryCardProps> = ({
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [sharedBy, setSharedBy] = useState<{ photoURL: string | null, displayName: string | null } | null>(null);
+  const currentUserId = auth.currentUser?.uid;
+  const isSharedWithMe = content?.sharedBy && content.sharedBy.displayName;
+  const isSharedByMe = currentUserId === content?.userId && content?.sharedWith && content.sharedWith.length > 0;
 
   useEffect(() => {
     console.log('MemoryCard useEffect - type:', type, 'content:', content);
@@ -178,6 +182,27 @@ const MemoryCard: React.FC<MemoryCardProps> = ({
     );
   };
 
+  const renderSharingIndicator = () => {
+    if (isSharedWithMe || isSharedByMe) {
+      return (
+        <View style={styles.sharingIndicator}>
+          <Ionicons 
+            name={isSharedWithMe ? "arrow-down" : "arrow-up"} 
+            size={12} 
+            color="#FFFFFF" 
+          />
+          <Text style={styles.sharingText}>
+            {isSharedWithMe 
+              ? `From ${content.sharedBy.displayName}`
+              : `Shared with ${content.sharedWith.length}`
+            }
+          </Text>
+        </View>
+      );
+    }
+    return null;
+  };
+
   const renderContent = () => {
     // For photo/video content
     if (['photo', 'reel', 'tiktok'].includes(type)) {
@@ -263,6 +288,8 @@ const MemoryCard: React.FC<MemoryCardProps> = ({
           )}
         </View>
       )}
+
+      {renderSharingIndicator()}
     </TouchableOpacity>
   );
 };
@@ -542,6 +569,23 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.lightAccent,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  sharingIndicator: {
+    position: 'absolute',
+    top: 8,
+    left: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  sharingText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '500',
+    marginLeft: 4,
   },
 });
 
