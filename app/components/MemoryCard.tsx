@@ -182,27 +182,6 @@ const MemoryCard: React.FC<MemoryCardProps> = ({
     );
   };
 
-  const renderSharingIndicator = () => {
-    if (isSharedWithMe || isSharedByMe) {
-      return (
-        <View style={styles.sharingIndicator}>
-          <Ionicons 
-            name={isSharedWithMe ? "arrow-down" : "arrow-up"} 
-            size={12} 
-            color="#FFFFFF" 
-          />
-          <Text style={styles.sharingText}>
-            {isSharedWithMe 
-              ? `From ${content.sharedBy.displayName}`
-              : `Shared with ${content.sharedWith.length}`
-            }
-          </Text>
-        </View>
-      );
-    }
-    return null;
-  };
-
   const renderContent = () => {
     // For photo/video content
     if (['photo', 'reel', 'tiktok'].includes(type)) {
@@ -288,8 +267,6 @@ const MemoryCard: React.FC<MemoryCardProps> = ({
           )}
         </View>
       )}
-
-      {renderSharingIndicator()}
     </TouchableOpacity>
   );
 };
@@ -569,23 +546,6 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.lightAccent,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  sharingIndicator: {
-    position: 'absolute',
-    top: 8,
-    left: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 12,
-  },
-  sharingText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontWeight: '500',
-    marginLeft: 4,
   },
 });
 
