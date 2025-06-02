@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { collection, doc, DocumentData, getDoc, onSnapshot, query, Timestamp, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Dimensions, FlatList, Keyboard, Linking, SafeAreaView, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Animated, Dimensions, FlatList, Image, Keyboard, Linking, SafeAreaView, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { auth, db } from '../../constants/Firebase';
 import AddContentModal from './AddContentModal';
 import AddMediaModal from './AddMediaModal';
@@ -677,6 +677,27 @@ export const MemoryFeed: React.FC = () => {
     }
   }, [isFullyLoaded]);
 
+  const [profilePhotoURL, setProfilePhotoURL] = useState<string | null>(null);
+
+  // Add this useEffect to load profile photo
+  useEffect(() => {
+    const loadProfilePhoto = async () => {
+      if (!auth.currentUser) return;
+      
+      try {
+        const userDoc = await getDoc(doc(db, 'users', auth.currentUser.uid));
+        if (userDoc.exists()) {
+          const data = userDoc.data();
+          setProfilePhotoURL(data.photoURL || null);
+        }
+      } catch (error) {
+        console.error('Error loading profile photo:', error);
+      }
+    };
+
+    loadProfilePhoto();
+  }, []);
+
   if (isLoading || !isFullyLoaded) {
     return (
       <View style={styles.safeArea}>
@@ -738,9 +759,17 @@ export const MemoryFeed: React.FC = () => {
               style={styles.headerButton}
               onPress={() => router.push('/profile')}
             >
-              <View style={styles.profileButton}>
-                <Ionicons name="person" size={18} color="#fff" />
-              </View>
+              {profilePhotoURL ? (
+                <Image 
+                  source={{ uri: profilePhotoURL }} 
+                  style={styles.profileButton}
+                  resizeMode="cover"
+                />
+              ) : (
+                <View style={styles.profileButton}>
+                  <Ionicons name="person" size={18} color="#fff" />
+                </View>
+              )}
             </TouchableOpacity>
           </View>
         </View>
@@ -981,6 +1010,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.accent,
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
   },
   dateText: {
     fontSize: 15,
