@@ -73,6 +73,7 @@ interface MediaDetailModalProps {
   onFavorite: (id: string) => void;
   currentUserId?: string;
   onUpdate?: (updatedMedia: MediaItem) => void;
+  onDelete?: (mediaId: string) => void;
 }
 
 interface SharedUser {
@@ -95,6 +96,7 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
   onFavorite,
   currentUserId,
   onUpdate,
+  onDelete,
 }) => {
   console.log('MediaDetailModal rendered with:', {
     visible,
@@ -639,10 +641,60 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
     return commentCount[mediaId] || 0;
   };
 
+  const handleDelete = (mediaId: string) => {
+    if (!currentMedia) return;
+    
+    Alert.alert(
+      'Delete Memory',
+      'Are you sure you want to delete this memory? This action cannot be undone.',
+      [
+        {
+          text: 'Cancel',
+          style: 'cancel'
+        },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            if (onDelete) {
+              try {
+                // If this is the last item, close the modal first
+                if (originalMediaList.length === 1) {
+                  onClose();
+                  // Small delay before deleting to ensure smooth transition
+                  setTimeout(() => onDelete(mediaId), 100);
+                  return;
+                }
+
+                // If we're deleting the last item in the list, move to previous item
+                if (currentIndex === originalMediaList.length - 1) {
+                  setCurrentIndex(currentIndex - 1);
+                }
+
+                // Wait for the deletion to complete
+                await onDelete(mediaId);
+                
+                // Update the media list to remove the deleted item
+                const updatedList = originalMediaList.filter(item => item.id !== mediaId);
+                if (updatedList.length === 0) {
+                  onClose();
+                }
+              } catch (error) {
+                console.error('Error during deletion:', error);
+                Alert.alert('Error', 'Failed to delete memory. Please try again.');
+              }
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const renderItem = ({ item, index }: { item: MediaItem, index: number }) => {    
     // Get comments for this specific item
     const itemComments = mediaComments[item.id] || [];
     const count = getCommentCountForMedia(item.id);
+    const isOwner = item.userId === currentUserId;
     
     return (
       <View style={styles.mediaItemContainer}>
@@ -688,6 +740,14 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
                     )}
                   </View>
                 </TouchableOpacity>
+                {isOwner && (
+                  <TouchableOpacity
+                    style={styles.iconButton}
+                    onPress={() => handleDelete(item.id)}
+                  >
+                    <Ionicons name="trash-outline" size={26} color="#FF3B30" />
+                  </TouchableOpacity>
+                )}
               </View>
             </View>
 

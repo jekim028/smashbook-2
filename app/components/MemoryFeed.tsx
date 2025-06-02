@@ -1,8 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { collection, doc, DocumentData, getDoc, onSnapshot, query, Timestamp, updateDoc, where } from 'firebase/firestore';
+import { collection, deleteDoc, doc, DocumentData, getDoc, onSnapshot, query, Timestamp, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Animated, Dimensions, FlatList, Image, Keyboard, Linking, SafeAreaView, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Animated, Dimensions, FlatList, Image, Keyboard, Linking, SafeAreaView, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { auth, db } from '../../constants/Firebase';
 import AddContentModal from './AddContentModal';
 import AddMediaModal from './AddMediaModal';
@@ -698,6 +698,28 @@ export const MemoryFeed: React.FC = () => {
     loadProfilePhoto();
   }, []);
 
+  const handleDelete = async (memoryId: string) => {
+    try {
+      // Get a reference to the memory document
+      const memoryRef = doc(db, 'memories', memoryId);
+      
+      // Delete from Firestore first
+      await deleteDoc(memoryRef);
+      
+      // Update local state after successful deletion
+      setMemories(prev => prev.filter(m => m.id !== memoryId));
+      
+      // Reset UI states
+      setSelectedMemory(null);
+      setMediaDetailIndex(0);
+      setIsMediaDetailVisible(false);
+      
+    } catch (error) {
+      console.error('Error deleting memory:', error);
+      Alert.alert('Error', 'Failed to delete memory. Please try again.');
+    }
+  };
+
   if (isLoading || !isFullyLoaded) {
     return (
       <View style={styles.safeArea}>
@@ -944,6 +966,7 @@ export const MemoryFeed: React.FC = () => {
           onClose={() => setIsMediaDetailVisible(false)}
           onFavorite={handleFavorite}
           currentUserId={auth.currentUser?.uid}
+          onDelete={handleDelete}
           onUpdate={(updatedMedia) => {
             // Update the memory in our local state if we can find it
             const memoryToUpdate = memories.find(m => m.id === updatedMedia.id);
