@@ -71,6 +71,7 @@ export const MemoryFeed: React.FC = () => {
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedFilter, setSelectedFilter] = useState<string | null>(null);
   const searchBarWidth = useRef(new Animated.Value(0)).current;
   const scrollViewRef = useRef<ScrollView>(null);
   const { height: screenHeight, width: screenWidth } = Dimensions.get('window');
@@ -111,12 +112,41 @@ export const MemoryFeed: React.FC = () => {
   // Helper to flatten all media into a single array for swiping
   const allMedia = memories.filter(m => ['photo', 'video', 'link'].includes(m.type));
 
+  // Filter options
+  const filterOptions = [
+    { label: 'All', value: null },
+    { label: 'Photos', value: 'photo', filterType: 'type' },
+    { label: 'Links', value: 'link', filterType: 'type' },
+    { label: 'Instagram', value: 'Instagram', filterType: 'publisher' },
+    { label: 'Spotify', value: 'Spotify', filterType: 'publisher' },
+    { label: 'TikTok', value: 'TikTok', filterType: 'publisher' },
+    { label: 'Pinterest', value: 'Pinterest', filterType: 'publisher' },
+  ];
+
+  // Filter memories based on selected filter
+  const filteredMemories = React.useMemo(() => {
+    if (!selectedFilter) return memories;
+    
+    const selectedOption = filterOptions.find(option => option.value === selectedFilter);
+    if (!selectedOption) return memories;
+
+    if (selectedOption.filterType === 'type') {
+      return memories.filter(memory => memory.type === selectedFilter);
+    } else {
+      // For publisher-based filtering, check the content.publisher field of link-type memories
+      return memories.filter(memory => 
+        memory.type === 'link' && 
+        memory.content?.publisher === selectedOption.value
+      );
+    }
+  }, [memories, selectedFilter]);
+
   // Group memories by date for our feed
   const memoryGroups = React.useMemo(() => {
     // Group memories by date
     const groups: { [dateKey: string]: Memory[] } = {};
     
-    memories.forEach(memory => {
+    filteredMemories.forEach(memory => {
       const dateKey = getDateString(memory.date);
       if (!groups[dateKey]) {
         groups[dateKey] = [];
@@ -132,7 +162,7 @@ export const MemoryFeed: React.FC = () => {
       memories: mems.sort((a, b) => a.date.toDate().getTime() - b.date.toDate().getTime()), // Sort within group
       id: `group-${dateString}`
     })).sort((a, b) => a.date.getTime() - b.date.getTime()); // Sort groups oldest to newest
-  }, [memories]);
+  }, [filteredMemories]);
 
   // Set initial floating date to the newest date when memory groups change
   useEffect(() => {
@@ -634,8 +664,8 @@ export const MemoryFeed: React.FC = () => {
         <View style={[
           styles.header, 
           { 
-            borderBottomLeftRadius: isSearchExpanded ? 0 : 16,
-            borderBottomRightRadius: isSearchExpanded ? 0 : 16 
+            borderBottomLeftRadius: 0,
+            borderBottomRightRadius: 0,
           }
         ]}>
           <View style={styles.headerLeft}>
@@ -692,7 +722,8 @@ export const MemoryFeed: React.FC = () => {
               inputRange: [0, 1],
               outputRange: [0, 48]
             }),
-            opacity: searchBarWidth
+            opacity: searchBarWidth,
+            paddingVertical: isSearchExpanded ? 8 : 0
           }
         ]}>
           <View style={styles.searchInputContainer}>
@@ -714,6 +745,36 @@ export const MemoryFeed: React.FC = () => {
             </TouchableOpacity>
           )}
         </Animated.View>
+
+        {/* Filter Bar */}
+        <View style={styles.filterBarContainer}>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            style={styles.filterBar}
+            contentContainerStyle={styles.filterContent}
+          >
+            {filterOptions.map((option) => (
+              <TouchableOpacity
+                key={option.value || 'all'}
+                style={[
+                  styles.filterChip,
+                  selectedFilter === option.value && styles.filterChipSelected
+                ]}
+                onPress={() => setSelectedFilter(option.value)}
+              >
+                <Text 
+                  style={[
+                    styles.filterChipText,
+                    selectedFilter === option.value && styles.filterChipTextSelected
+                  ]}
+                >
+                  {option.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
 
         {/* Memory groups with dividers */}
         <FlatList
@@ -903,7 +964,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.card,
     borderBottomLeftRadius: 16,
     borderBottomRightRadius: 16,
-    marginBottom: 8,
+    marginBottom: 4,
   },
   searchInputContainer: {
     flexDirection: 'row',
@@ -1024,6 +1085,41 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  filterBarContainer: {
+    backgroundColor: COLORS.card,
+    paddingTop: 4,
+    paddingBottom: 12,
+    marginBottom: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F0F0F0',
+  },
+  filterBar: {
+    flexGrow: 0,
+  },
+  filterContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+  },
+  filterChip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 16,
+    backgroundColor: '#F5F5F5',
+    marginRight: 8,
+    minWidth: 70,
+  },
+  filterChipSelected: {
+    backgroundColor: COLORS.accent,
+  },
+  filterChipText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.text,
+    textAlign: 'center',
+  },
+  filterChipTextSelected: {
+    color: '#FFFFFF',
   },
 });
 
