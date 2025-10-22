@@ -36,7 +36,7 @@ import FirebaseAuth
         return bundleURL
 #endif
       },
-      newArchEnabled: false,
+      newArchEnabled: true,
       turboModuleEnabled: true,
       bridgelessEnabled: false
     )

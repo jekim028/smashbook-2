@@ -31,6 +31,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   },
   plugins: [
     'expo-router',
+    'expo-font',
+    'expo-web-browser',  // <-- Add this line
     [
       'expo-splash-screen',
       {
@@ -69,4 +71,4 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   experiments: {
     typedRoutes: true,
   },
-}); 
+});

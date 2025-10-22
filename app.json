@@ -48,6 +48,30 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "build": {
+          "experimental": {
+            "ios": {
+              "appExtensions": [
+                {
+                  "targetName": "SmashbookShareExtension",
+                  "bundleIdentifier": "com.esi.smashbook2.ShareExtension",
+                  "entitlements": {
+                    "com.apple.security.application-groups": [
+                      "group.com.esi.smashbook2"
+                    ]
+                  }
+                }
+              ]
+            }
+          }
+        },
+        "projectId": "93173180-65e2-4efe-b9c0-37bfb73f046f"
+      },
+      "appleApplicationGroup": "group.com.esi.smashbook2"
     }
   }
 }
