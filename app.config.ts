@@ -9,11 +9,14 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   icon: './assets/images/icon.png',
   scheme: 'smashbook2',
   userInterfaceStyle: 'automatic',
-  newArchEnabled: false,
+  newArchEnabled: true,
   ios: {
     supportsTablet: true,
     bundleIdentifier: 'com.esi.smashbook2',
     buildNumber: '1',
+    infoPlist: {
+      UIBackgroundModes: ['fetch', 'processing'],
+    },
   },
   android: {
     adaptiveIcon: {
@@ -32,7 +35,8 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   plugins: [
     'expo-router',
     'expo-font',
-    'expo-web-browser',  // <-- Add this line
+    'expo-web-browser',
+    'expo-dev-client',
     [
       'expo-splash-screen',
       {
@@ -45,6 +49,13 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
     [
       'expo-share-extension',
       {
+        iosFolder: 'SmashbookShareExtension',
+        iosActivationRules: {
+          NSExtensionActivationSupportsImageWithMaxCount: 10,
+          NSExtensionActivationSupportsMovieWithMaxCount: 5,
+          NSExtensionActivationSupportsWebURLWithMaxCount: 1,
+          NSExtensionActivationSupportsText: true,
+        },
         activationRules: [
           {
             type: 'url',

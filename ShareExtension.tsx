@@ -2,6 +2,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { close, InitialProps, openHostApp } from 'expo-share-extension';
 import React, { useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { logger } from './utils/logger';
+import { sharedStorage } from './utils/sharedStorage';
 
 // Colors to match the fish logo theme
 const COLORS = {
@@ -10,39 +12,141 @@ const COLORS = {
   text: '#1A3140', // Navy from fish logo
   secondaryText: '#8E8E93',
   accent: '#FF914D', // Orange from fish logo
+  success: '#4CAF50',
   error: '#FF3B30',
 };
 
+type ExtensionState = 'input' | 'saving' | 'success' | 'error';
+
 export default function ShareExtension(props: InitialProps) {
+  const [state, setState] = useState<ExtensionState>('input');
   const [caption, setCaption] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
   
   // Extract the shared content
   const { url, text, images } = props;
   
   const sharedContent = url || text || (images && images.length > 0 ? 'Image shared' : 'Content shared');
-  
-  const handleSave = () => {
-    setIsLoading(true);
-    
-    // We can use a timeout to simulate processing
-    setTimeout(() => {
-      // Open the host app and pass the shared content
-      // You could encode this data and pass it as URL parameters
-      if (url) {
-        openHostApp(`create?url=${encodeURIComponent(url)}&caption=${encodeURIComponent(caption)}`);
-      } else if (text) {
-        openHostApp(`create?text=${encodeURIComponent(text)}&caption=${encodeURIComponent(caption)}`);
-      } else if (images && images.length > 0) {
-        // For images, we might need a different approach since we can't easily pass image data in URL
-        // This would require more advanced implementation with shared storage
-        openHostApp('create');
-      } else {
-        openHostApp('create');
+
+  // Determine content type and data
+  const getContentType = (): 'url' | 'text' | 'image' | 'video' => {
+    if (url) return 'url';
+    if (images && images.length > 0) {
+      // Check if it's a video based on file extension (basic check)
+      const firstImage = images[0];
+      if (firstImage && (firstImage.toLowerCase().endsWith('.mp4') || 
+          firstImage.toLowerCase().endsWith('.mov') || 
+          firstImage.toLowerCase().endsWith('.m4v'))) {
+        return 'video';
       }
-    }, 500);
+      return 'image';
+    }
+    return 'text';
+  };
+
+  const handleSave = async () => {
+    setState('saving');
+    logger.info('Starting share save', { type: getContentType(), hasCaption: !!caption });
+    
+    try {
+      const contentType = getContentType();
+      const shareData: any = {};
+
+      // Build the data object based on content type
+      if (url) {
+        shareData.url = url;
+      } else if (text) {
+        shareData.text = text;
+      } else if (images && images.length > 0) {
+        if (contentType === 'video') {
+          shareData.videoUri = images[0];
+          shareData.filename = images[0].split('/').pop();
+        } else {
+          shareData.imageUri = images[0];
+          shareData.filename = images[0].split('/').pop();
+        }
+      }
+
+      // Save to shared storage (silently, without opening main app)
+      const shareId = await sharedStorage.saveSharedContent({
+        type: contentType,
+        caption: caption || undefined,
+        data: shareData,
+        metadata: {
+          sourceApp: 'ShareExtension',
+        },
+      });
+
+      logger.info('Successfully saved share', { shareId });
+      
+      // Show success state
+      setState('success');
+      
+      // Auto-dismiss after 2 seconds
+      setTimeout(() => {
+        logger.info('Auto-dismissing share extension');
+        close();
+      }, 2000);
+      
+    } catch (error) {
+      logger.error('Failed to save share', error);
+      setErrorMessage('Failed to save content. Please try again.');
+      setState('error');
+      
+      // Auto-dismiss error after 3 seconds
+      setTimeout(() => {
+        close();
+      }, 3000);
+    }
+  };
+
+  const handleOpenApp = () => {
+    logger.info('User chose to open main app');
+    openHostApp(''); // Opens main app without specific route
   };
   
+  // SAVING STATE: Show loading spinner
+  if (state === 'saving') {
+    return (
+      <View style={styles.centeredContainer}>
+        <ActivityIndicator size="large" color={COLORS.accent} />
+        <Text style={styles.statusText}>Saving to Smashbook...</Text>
+      </View>
+    );
+  }
+
+  // SUCCESS STATE: Show checkmark and auto-dismiss
+  if (state === 'success') {
+    return (
+      <View style={styles.centeredContainer}>
+        <View style={styles.successIcon}>
+          <Ionicons name="checkmark" size={40} color="#FFFFFF" />
+        </View>
+        <Text style={styles.successText}>Saved!</Text>
+        <Text style={styles.successSubtext}>Opening in Smashbook shortly...</Text>
+        
+        {/* Optional: Open app button (not auto-triggered) */}
+        <TouchableOpacity style={styles.openAppButton} onPress={handleOpenApp}>
+          <Text style={styles.openAppButtonText}>Open Smashbook Now</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
+  // ERROR STATE: Show error and auto-dismiss
+  if (state === 'error') {
+    return (
+      <View style={styles.centeredContainer}>
+        <View style={styles.errorIcon}>
+          <Ionicons name="close" size={40} color="#FFFFFF" />
+        </View>
+        <Text style={styles.errorText}>Oops!</Text>
+        <Text style={styles.errorSubtext}>{errorMessage}</Text>
+      </View>
+    );
+  }
+
+  // INPUT STATE: Show caption input form
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -60,11 +164,12 @@ export default function ShareExtension(props: InitialProps) {
         
         <TextInput
           style={styles.captionInput}
-          placeholder="Add a caption..."
+          placeholder="Add a caption (optional)..."
           placeholderTextColor={COLORS.secondaryText}
           value={caption}
           onChangeText={setCaption}
           multiline
+          autoFocus
         />
       </View>
       
@@ -72,7 +177,6 @@ export default function ShareExtension(props: InitialProps) {
         <TouchableOpacity 
           style={styles.cancelButton} 
           onPress={close}
-          disabled={isLoading}
         >
           <Text style={styles.cancelButtonText}>Cancel</Text>
         </TouchableOpacity>
@@ -80,13 +184,8 @@ export default function ShareExtension(props: InitialProps) {
         <TouchableOpacity 
           style={styles.saveButton} 
           onPress={handleSave}
-          disabled={isLoading}
         >
-          {isLoading ? (
-            <ActivityIndicator color="#FFFFFF" size="small" />
-          ) : (
-            <Text style={styles.saveButtonText}>Save to Smashbook</Text>
-          )}
+          <Text style={styles.saveButtonText}>Save to Smashbook</Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -98,6 +197,13 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
     padding: 16,
+  },
+  centeredContainer: {
+    flex: 1,
+    backgroundColor: COLORS.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
   },
   header: {
     flexDirection: 'row',
@@ -187,5 +293,75 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     color: '#FFFFFF',
+  },
+  // Status states
+  statusText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: COLORS.text,
+    fontWeight: '500',
+  },
+  successIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: COLORS.success,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+    shadowColor: COLORS.success,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  successText: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: 8,
+  },
+  successSubtext: {
+    fontSize: 14,
+    color: COLORS.secondaryText,
+    marginBottom: 24,
+  },
+  openAppButton: {
+    backgroundColor: COLORS.accent,
+    borderRadius: 12,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    marginTop: 8,
+  },
+  openAppButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  errorIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: COLORS.error,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+    shadowColor: COLORS.error,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  errorText: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: COLORS.text,
+    marginBottom: 8,
+  },
+  errorSubtext: {
+    fontSize: 14,
+    color: COLORS.secondaryText,
+    textAlign: 'center',
+    paddingHorizontal: 32,
   },
 }); 

@@ -208,6 +208,8 @@ PODS:
     - Yoga
   - ExpoAsset (12.0.9):
     - ExpoModulesCore
+  - ExpoBackgroundFetch (14.0.7):
+    - ExpoModulesCore
   - ExpoBlur (15.0.7):
     - ExpoModulesCore
   - ExpoCrypto (15.0.7):
@@ -267,6 +269,9 @@ PODS:
     - ExpoModulesCore
   - ExpoWebBrowser (15.0.8):
     - ExpoModulesCore
+  - EXTaskManager (14.0.8):
+    - ExpoModulesCore
+    - UMAppLoader
   - EXUpdatesInterface (2.0.0):
     - ExpoModulesCore
   - FBLazyVector (0.81.5)
@@ -2220,7 +2225,7 @@ PODS:
     - ReactCommon/turbomodule/core
     - ReactNativeDependencies
     - Yoga
-  - RNSharedElement (0.8.9):
+  - RNSharedElement (0.8.4):
     - React-Core
   - RNSVG (15.12.1):
     - hermes-engine
@@ -2349,6 +2354,7 @@ PODS:
   - SDWebImageWebPCoder (0.14.6):
     - libwebp (~> 1.0)
     - SDWebImage/Core (~> 5.17)
+  - UMAppLoader (6.0.7)
   - Yoga (0.0.0)
 
 DEPENDENCIES:
@@ -2363,6 +2369,7 @@ DEPENDENCIES:
   - expo-dev-menu (from `../node_modules/expo-dev-menu`)
   - expo-dev-menu-interface (from `../node_modules/expo-dev-menu-interface/ios`)
   - ExpoAsset (from `../node_modules/expo-asset/ios`)
+  - ExpoBackgroundFetch (from `../node_modules/expo-background-fetch/ios`)
   - ExpoBlur (from `../node_modules/expo-blur/ios`)
   - ExpoCrypto (from `../node_modules/expo-crypto/ios`)
   - ExpoFileSystem (from `../node_modules/expo-file-system/ios`)
@@ -2379,6 +2386,7 @@ DEPENDENCIES:
   - ExpoSymbols (from `../node_modules/expo-symbols/ios`)
   - ExpoSystemUI (from `../node_modules/expo-system-ui/ios`)
   - ExpoWebBrowser (from `../node_modules/expo-web-browser/ios`)
+  - EXTaskManager (from `../node_modules/expo-task-manager/ios`)
   - EXUpdatesInterface (from `../node_modules/expo-updates-interface/ios`)
   - FBLazyVector (from `../node_modules/react-native/Libraries/FBLazyVector`)
   - hermes-engine (from `../node_modules/react-native/sdks/hermes-engine/hermes-engine.podspec`)
@@ -2456,6 +2464,7 @@ DEPENDENCIES:
   - RNSharedElement (from `../node_modules/react-native-shared-element`)
   - RNSVG (from `../node_modules/react-native-svg`)
   - RNWorklets (from `../node_modules/react-native-worklets`)
+  - UMAppLoader (from `../node_modules/unimodules-app-loader/ios`)
   - Yoga (from `../node_modules/react-native/ReactCommon/yoga`)
 
 SPEC REPOS:
@@ -2491,6 +2500,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/expo-dev-menu-interface/ios"
   ExpoAsset:
     :path: "../node_modules/expo-asset/ios"
+  ExpoBackgroundFetch:
+    :path: "../node_modules/expo-background-fetch/ios"
   ExpoBlur:
     :path: "../node_modules/expo-blur/ios"
   ExpoCrypto:
@@ -2523,6 +2534,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/expo-system-ui/ios"
   ExpoWebBrowser:
     :path: "../node_modules/expo-web-browser/ios"
+  EXTaskManager:
+    :path: "../node_modules/expo-task-manager/ios"
   EXUpdatesInterface:
     :path: "../node_modules/expo-updates-interface/ios"
   FBLazyVector:
@@ -2676,6 +2689,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native-svg"
   RNWorklets:
     :path: "../node_modules/react-native-worklets"
+  UMAppLoader:
+    :path: "../node_modules/unimodules-app-loader/ios"
   Yoga:
     :path: "../node_modules/react-native/ReactCommon/yoga"
 
@@ -2691,6 +2706,7 @@ SPEC CHECKSUMS:
   expo-dev-menu: 432c9ad88e9e2673781831602418117f98e20903
   expo-dev-menu-interface: 600df12ea01efecdd822daaf13cc0ac091775533
   ExpoAsset: 3c3b7dd9b1318846a02ef05ce420e63d542aeb9f
+  ExpoBackgroundFetch: e0a8fba22cb21473f667eb8220cab7feef18e63c
   ExpoBlur: b5b7a26572b3c33a11f0b2aa2f95c17c4c393b76
   ExpoCrypto: 4c50a152f5939e16a2ca10be77b002a3a391c4d3
   ExpoFileSystem: 56f081328f5b48a6dcc8302eee51d4f2d9d0049b
@@ -2707,6 +2723,7 @@ SPEC CHECKSUMS:
   ExpoSymbols: ef7b8ac77ac2d496b1bc3f0f7daf5e19c3a9933a
   ExpoSystemUI: 9441d46a8efbf9224d1b2e6b18042452ffd0ed79
   ExpoWebBrowser: 51218ce6ef35ea769e33409aac87fea3df4b919d
+  EXTaskManager: 53f87ed11659341c3f3f02c0041498ef293f5684
   EXUpdatesInterface: 1436757deb0d574b84bba063bd024c315e0ec08b
   FBLazyVector: e95a291ad2dadb88e42b06e0c5fb8262de53ec12
   hermes-engine: 9f4dfe93326146a1c99eb535b1cb0b857a3cd172
@@ -2783,15 +2800,16 @@ SPEC CHECKSUMS:
   RNGestureHandler: 6a488ce85c88e82d8610db1108daf04e9b2d5162
   RNReanimated: 86eb11e13d1ffa50d2b69a9946274fcc504cab76
   RNScreens: dd61bc3a3e6f6901ad833efa411917d44827cf51
-  RNSharedElement: 3fd05877bd6bc95f71b332801bf4356ca69ab7f6
+  RNSharedElement: eb7d506733952d58634f34c82ec17e82f557e377
   RNSVG: 2825ee146e0f6a16221e852299943e4cceef4528
   RNWorklets: 28ee7370ca8da356fcc914e3e68b97e9752196d2
   SDWebImage: 16309af6d214ba3f77a7c6f6fdda888cb313a50a
   SDWebImageAVIFCoder: afe194a084e851f70228e4be35ef651df0fc5c57
   SDWebImageSVGCoder: 15a300a97ec1c8ac958f009c02220ac0402e936c
   SDWebImageWebPCoder: e38c0a70396191361d60c092933e22c20d5b1380
+  UMAppLoader: e1234c45d2b7da239e9e90fc4bbeacee12afd5b6
   Yoga: 5934998fbeaef7845dbf698f698518695ab4cd1a
 
-PODFILE CHECKSUM: f07b4896dd46e0f76e107815b174c854db83c810
+PODFILE CHECKSUM: b422705b78a61ce213237b374a829991816458a5
 
 COCOAPODS: 1.16.2
