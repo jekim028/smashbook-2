@@ -1,5 +1,5 @@
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import { useFonts } from 'expo-font';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -7,8 +7,6 @@ import { onAuthStateChanged } from 'firebase/auth';
 import { useEffect, useState } from 'react';
 import 'react-native-reanimated';
 import { auth } from '../constants/Firebase';
-// Import only what we need for now - we'll add the cache back once the app is stable
-// import { clearOldCache, ensureCacheDirectoryExists } from '../app/utils/imageCache';
 
 import { useColorScheme } from '@/hooks/useColorScheme';
 
@@ -23,14 +21,10 @@ const initializeImageCache = async () => {
       await FileSystem.makeDirectoryAsync(cacheDir, {
         intermediates: true,
       });
-      console.log('Created image cache directory');
-    } else {
-      console.log('Image cache directory exists');
     }
     
     return true;
   } catch (error) {
-    console.error('Error initializing image cache:', error);
     // Return true anyway to not block app loading
     return true;
   }
@@ -85,8 +79,8 @@ export default function RootLayout() {
     }
   }, [isAuthenticated]);
 
-  if (!loaded) {
-    // Wait only for fonts to load, not cache
+  // Show nothing while loading fonts or checking authentication
+  if (!loaded || isAuthenticated === null) {
     return null;
   }
 

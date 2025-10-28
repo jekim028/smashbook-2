@@ -9,10 +9,10 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   icon: './assets/images/icon.png',
   scheme: 'smashbook2',
   userInterfaceStyle: 'automatic',
-  newArchEnabled: true,
+  newArchEnabled: false,
   ios: {
     supportsTablet: true,
-    bundleIdentifier: 'com.esi.smashbook2',
+    bundleIdentifier: 'com.juliarhee.smashbook2',
     buildNumber: '1',
     infoPlist: {
       UIBackgroundModes: ['fetch', 'processing'],
@@ -21,7 +21,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
   android: {
     adaptiveIcon: {
       foregroundImage: './assets/images/adaptive-icon.png',
-      backgroundColor: '#ffffff',
+      backgroundColor: '#FF914D',
     },
     package: 'com.esi.smashbook2',
     versionCode: 1,
@@ -43,7 +43,7 @@ export default ({ config }: ConfigContext): ExpoConfig => ({
         image: './assets/images/splash-icon.png',
         imageWidth: 200,
         resizeMode: 'contain',
-        backgroundColor: '#ffffff',
+        backgroundColor: '#FF914D',
       },
     ],
     [

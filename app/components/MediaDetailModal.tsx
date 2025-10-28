@@ -3,26 +3,29 @@ import { useNavigation } from '@react-navigation/native';
 import { collection, doc, getDoc, getDocs, query, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  Alert,
-  Animated,
-  Dimensions,
-  FlatList,
-  Image,
-  Linking,
-  Modal,
-  PanResponder,
-  ScrollView,
-  Share,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View
+    Alert,
+    Animated,
+    Dimensions,
+    FlatList,
+    Image,
+    Keyboard,
+    KeyboardAvoidingView,
+    Linking,
+    Modal,
+    PanResponder,
+    Platform,
+    ScrollView,
+    Share,
+    StyleSheet,
+    Text,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { db } from '../../constants/Firebase';
+import { isImageCached, markImageAsLoaded } from '../utils/imageCache';
 import CommentsModal, { Comment } from './CommentsModal';
-// Temporarily disable image caching
-// import { getCachedImageUri, preloadImages } from '../utils/imageCache';
 
 const { width, height } = Dimensions.get('window');
 
@@ -37,7 +40,7 @@ const COLORS = {
 // Type definitions
 interface MediaItem {
   id: string;
-  type: 'photo' | 'image' | 'video' | 'link' | string;
+  type: 'photo' | 'image' | 'video' | 'link' | 'text' | 'note' | string;
   content: {
     uri?: string;
     url?: string;
@@ -55,6 +58,7 @@ interface MediaItem {
     };
     previewImage?: string;
     title?: string;
+    text?: string;
   };
   isFavorite?: boolean;
   caption?: string;
@@ -123,6 +127,13 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
   const [showCommentsModal, setShowCommentsModal] = useState(false);
   const [mediaComments, setMediaComments] = useState<{[key: string]: Comment[]}>({});
   const [commentCount, setCommentCount] = useState<{[key: string]: number}>({});
+
+  // State for caption editing
+  const [isEditingCaption, setIsEditingCaption] = useState(false);
+  const [editedCaption, setEditedCaption] = useState('');
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const captionInputRef = useRef<TextInput>(null);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -208,6 +219,41 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
     }
   }, [showSharedWithModal]);
 
+  // Preload adjacent images for seamless swiping
+  useEffect(() => {
+    if (!visible) return;
+    
+    const preloadAdjacentImages = () => {
+      // Preload previous image
+      if (currentIndex > 0) {
+        const prevItem = originalMediaList[currentIndex - 1];
+        const prevUri = prevItem?.content?.thumbnail || prevItem?.content?.uri;
+        if (prevUri && !isImageCached(prevUri)) {
+          console.log('[MediaDetail] Preloading previous image');
+          Image.prefetch(prevUri).then(() => {
+            markImageAsLoaded(prevUri);
+          }).catch(err => console.log('Preload failed:', err));
+        }
+      }
+      
+      // Preload next image
+      if (currentIndex < originalMediaList.length - 1) {
+        const nextItem = originalMediaList[currentIndex + 1];
+        const nextUri = nextItem?.content?.thumbnail || nextItem?.content?.uri;
+        if (nextUri && !isImageCached(nextUri)) {
+          console.log('[MediaDetail] Preloading next image');
+          Image.prefetch(nextUri).then(() => {
+            markImageAsLoaded(nextUri);
+          }).catch(err => console.log('Preload failed:', err));
+        }
+      }
+    };
+    
+    // Small delay to prioritize current image
+    const timer = setTimeout(preloadAdjacentImages, 300);
+    return () => clearTimeout(timer);
+  }, [currentIndex, originalMediaList, visible]);
+  
   // Update debugging log
   useEffect(() => {
     if (visible && __DEV__) {
@@ -562,6 +608,109 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
     );
   };
 
+  // Reset editing state when media changes or modal closes
+  useEffect(() => {
+    setIsEditingCaption(false);
+    setEditedCaption('');
+  }, [currentMedia?.id, visible]);
+
+  // Keyboard event listeners
+  useEffect(() => {
+    const keyboardWillShow = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow',
+      (e) => {
+        setKeyboardHeight(e.endCoordinates.height);
+        // Scroll more aggressively to ensure caption is visible
+        setTimeout(() => {
+          if (scrollViewRef.current && isEditingCaption) {
+            // Scroll to the end minus some offset for the buttons
+            scrollViewRef.current.scrollToEnd({ animated: true });
+          }
+        }, 150);
+      }
+    );
+
+    const keyboardWillHide = Keyboard.addListener(
+      Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide',
+      () => {
+        setKeyboardHeight(0);
+      }
+    );
+
+    return () => {
+      keyboardWillShow.remove();
+      keyboardWillHide.remove();
+    };
+  }, [isEditingCaption]);
+
+  // Handle caption editing
+  const handleStartEditCaption = () => {
+    const currentCaption = currentMedia.caption || currentMedia.content?.caption || '';
+    setEditedCaption(currentCaption);
+    setIsEditingCaption(true);
+    
+    // Scroll to bottom to show caption input area
+    setTimeout(() => {
+      if (scrollViewRef.current) {
+        scrollViewRef.current.scrollToEnd({ animated: true });
+      }
+    }, 200);
+  };
+
+  const handleCancelEditCaption = () => {
+    Keyboard.dismiss();
+    setIsEditingCaption(false);
+    setEditedCaption('');
+    // Scroll back to top
+    setTimeout(() => {
+      scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+    }, 100);
+  };
+
+  const handleSaveCaption = async () => {
+    if (!currentMedia?.id) return;
+    
+    Keyboard.dismiss();
+    // Scroll back to top
+    setTimeout(() => {
+      scrollViewRef.current?.scrollTo({ y: 0, animated: true });
+    }, 100);
+    
+    try {
+      const memoryRef = doc(db, 'memories', currentMedia.id);
+      
+      // Update Firestore
+      await updateDoc(memoryRef, {
+        caption: editedCaption.trim(),
+        'content.caption': editedCaption.trim()
+      });
+      
+      // Update local state
+      const currentIndex = originalMediaList.findIndex(item => item.id === currentMedia.id);
+      if (currentIndex !== -1) {
+        originalMediaList[currentIndex] = {
+          ...originalMediaList[currentIndex],
+          caption: editedCaption.trim(),
+          content: {
+            ...originalMediaList[currentIndex].content,
+            caption: editedCaption.trim()
+          }
+        };
+      }
+
+      // Notify parent component
+      if (onUpdate) {
+        onUpdate(originalMediaList[currentIndex]);
+      }
+
+      setIsEditingCaption(false);
+      setEditedCaption('');
+    } catch (error) {
+      console.error('Error updating caption:', error);
+      Alert.alert('Error', 'Failed to update caption');
+    }
+  };
+
   // Fetch comments when media changes
   useEffect(() => {
     if (!visible || !currentMedia?.id) return;
@@ -645,10 +794,17 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
     const count = getCommentCountForMedia(item.id);
     
     return (
-      <View style={styles.mediaItemContainer}>
+      <KeyboardAvoidingView 
+        style={styles.mediaItemContainer}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
+      >
         <ScrollView 
+          ref={scrollViewRef}
           style={styles.mediaScrollContainer}
-          contentContainerStyle={{ paddingBottom: 40 }}
+          contentContainerStyle={{ paddingBottom: keyboardHeight + 40 }}
+          keyboardShouldPersistTaps="handled"
+          scrollEventThrottle={16}
         >
           {/* Media Content (Photo, Video, etc.) */}
           {renderMedia(item)}
@@ -691,11 +847,55 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
               </View>
             </View>
 
-            {/* Caption - ensure it's visible when present */}
-            {(item.caption || item.content?.caption) && (
-              <Text style={styles.caption}>
-                {item.caption || item.content?.caption}
-              </Text>
+            {/* Caption with edit icon */}
+            {isEditingCaption && item.id === currentMedia?.id ? (
+              <View style={styles.captionEditContainer}>
+                <TextInput
+                  ref={captionInputRef}
+                  style={styles.captionInput}
+                  value={editedCaption}
+                  onChangeText={setEditedCaption}
+                  placeholder="Add a caption..."
+                  multiline
+                  autoFocus
+                  onFocus={() => {
+                    // Scroll to end to ensure input and buttons are visible
+                    setTimeout(() => {
+                      scrollViewRef.current?.scrollToEnd({ animated: true });
+                    }, 300);
+                  }}
+                />
+                <View style={styles.captionEditButtons}>
+                  <TouchableOpacity
+                    style={[styles.captionButton, styles.captionCancelButton]}
+                    onPress={handleCancelEditCaption}
+                  >
+                    <Text style={styles.captionCancelButtonText}>Cancel</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.captionButton, styles.captionSaveButton]}
+                    onPress={handleSaveCaption}
+                  >
+                    <Text style={styles.captionSaveButtonText}>Save</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
+              (item.caption || item.content?.caption || item.userId === currentUserId) && (
+                <View style={styles.captionContainer}>
+                  <Text style={styles.caption}>
+                    {item.caption || item.content?.caption || 'Add a caption...'}
+                  </Text>
+                  {item.userId === currentUserId && (
+                    <TouchableOpacity
+                      style={styles.editCaptionButton}
+                      onPress={handleStartEditCaption}
+                    >
+                      <Ionicons name="create-outline" size={18} color={COLORS.accent} />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )
             )}
 
             {/* Shared by section */}
@@ -783,8 +983,13 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
             )}
           </View>
         </ScrollView>
-      </View>
+      </KeyboardAvoidingView>
     );
+  };
+
+  // Mark image as loaded in global cache
+  const handleImageLoaded = (imageUri: string) => {
+    markImageAsLoaded(imageUri);
   };
 
   // Completely simplified renderMedia function
@@ -792,6 +997,7 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
 
     // Get image URI - focus on thumbnail first, then fall back to uri
     const imageUri = item.content?.thumbnail || item.content?.uri || '';
+    const cached = isImageCached(imageUri);
     
     if (item.type === 'photo' || item.type === 'image') {
       if (imageUri) {
@@ -803,7 +1009,7 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
             <View style={{
               width: width,
               height: width,
-              backgroundColor: '#fff',
+              backgroundColor: '#f8f8f8',
               justifyContent: 'center',
               alignItems: 'center'
             }}>
@@ -812,9 +1018,11 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
                 style={{
                   width: width * 0.9,
                   height: width * 0.9,
-                  backgroundColor: 'transparent'
+                  backgroundColor: 'transparent',
                 }}
                 resizeMode="contain"
+                onLoadEnd={() => handleImageLoaded(imageUri)}
+                fadeDuration={0}
               />
             </View>
           </TouchableOpacity>
@@ -823,6 +1031,9 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
     }
     
     if (item.type === 'link') {
+      const linkImageUri = item.content?.previewImage || '';
+      const linkCached = isImageCached(linkImageUri);
+      
       return (
         <TouchableOpacity 
           onPress={() => item.content?.url && Linking.openURL(item.content.url)}
@@ -837,16 +1048,27 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
             padding: 16
           }}>
             {item.content?.previewImage ? (
-              <Image
-                source={{ uri: item.content.previewImage }}
-                style={{
-                  width: width * 0.9,
-                  height: width * 0.6,
-                  borderRadius: 12,
-                  marginBottom: 16
-                }}
-                resizeMode="cover"
-              />
+              <View style={{
+                width: width * 0.9,
+                height: width * 0.6,
+                borderRadius: 12,
+                marginBottom: 16,
+                backgroundColor: '#f8f8f8',
+                justifyContent: 'center',
+                alignItems: 'center',
+                overflow: 'hidden'
+              }}>
+                <Image
+                  source={{ uri: item.content.previewImage }}
+                  style={{
+                    width: width * 0.9,
+                    height: width * 0.6,
+                  }}
+                  resizeMode="cover"
+                  onLoadEnd={() => handleImageLoaded(linkImageUri)}
+                  fadeDuration={0}
+                />
+              </View>
             ) : (
               <View style={{
                 width: width * 0.9,
@@ -898,6 +1120,49 @@ const MediaDetailModal: React.FC<MediaDetailModalProps> = ({
             <Text style={{ marginTop: 12, color: '#888' }}>Video Content</Text>
           </View>
         </TouchableOpacity>
+      );
+    }
+    
+    // Handle text and note content
+    if (item.type === 'text' || item.type === 'note') {
+      const textContent = item.content?.text || item.content?.title || 'No text content';
+      return (
+        <View style={{
+          width: width,
+          minHeight: width * 0.8,
+          backgroundColor: '#FFF0E6',
+          padding: 24,
+          justifyContent: 'center',
+          alignItems: 'center'
+        }}>
+          <View style={{
+            backgroundColor: '#fff',
+            borderRadius: 16,
+            padding: 20,
+            width: '100%',
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.1,
+            shadowRadius: 8,
+            elevation: 3,
+          }}>
+            <Ionicons 
+              name="chatbubble-ellipses-outline" 
+              size={32} 
+              color="#FF914D" 
+              style={{ marginBottom: 16, alignSelf: 'center' }}
+            />
+            <Text style={{
+              fontSize: 18,
+              lineHeight: 28,
+              color: '#222',
+              textAlign: 'center',
+              fontWeight: '400',
+            }}>
+              {textContent}
+            </Text>
+          </View>
+        </View>
       );
     }
     
@@ -1293,13 +1558,65 @@ const styles = StyleSheet.create({
     marginLeft: 16,
     padding: 4,
   },
-  caption: {
-    fontSize: 16,
-    fontWeight: '500',
+  captionContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
     marginTop: 4,
     marginBottom: 12,
+  },
+  caption: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '500',
     color: '#222',
     lineHeight: 22,
+  },
+  editCaptionButton: {
+    padding: 4,
+    marginLeft: 8,
+  },
+  captionEditContainer: {
+    marginTop: 4,
+    marginBottom: 12,
+  },
+  captionInput: {
+    fontSize: 16,
+    color: '#222',
+    lineHeight: 22,
+    padding: 12,
+    backgroundColor: '#f8f8f8',
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: COLORS.accent,
+    minHeight: 60,
+    textAlignVertical: 'top',
+  },
+  captionEditButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 8,
+    gap: 8,
+  },
+  captionButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+  },
+  captionCancelButton: {
+    backgroundColor: '#f0f0f0',
+  },
+  captionSaveButton: {
+    backgroundColor: COLORS.accent,
+  },
+  captionCancelButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#666',
+  },
+  captionSaveButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#fff',
   },
   commentSection: {
     marginTop: 16,

@@ -217,7 +217,7 @@ const CommentsModal: React.FC<CommentsModalProps> = ({
         id: newCommentId,
         text: commentText.trim(),
         userId: auth.currentUser!.uid,
-        username: currentUser.displayName || 'Anonymous',
+        username: 'julia',
         userPhotoURL: currentUser.photoURL || null,
         timestamp: Timestamp.now(),
         likes: []
@@ -239,8 +239,10 @@ const CommentsModal: React.FC<CommentsModalProps> = ({
           comments: updatedComments
         });
         
-        // Optimistically update UI
-        onCommentAdded(newComment);
+        // Update the parent component with the new comments array
+        if (onCommentsUpdated) {
+          onCommentsUpdated(updatedComments);
+        }
         
         // Clear the input
         setCommentText('');

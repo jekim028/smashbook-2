@@ -5,11 +5,14 @@
  */
 
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
+import { NativeModules, Platform } from 'react-native';
 import { logger } from './logger';
 
 // App Group identifier - MUST match the one in your iOS entitlements
-const APP_GROUP_ID = 'group.com.esi.smashbook2';
+const APP_GROUP_ID = 'group.com.juliarhee.smashbook2';
+
+const { AppGroupBridge } = NativeModules;
 
 // Storage keys
 const STORAGE_KEYS = {
@@ -49,17 +52,41 @@ class SharedStorage {
    */
   private async initializeAppGroup() {
     try {
-      // On iOS, we need to use the App Group container
-      // FileSystem.documentDirectory is the default, but for App Groups:
-      this.appGroupPath = `${FileSystem.documentDirectory}../../Shared/AppGroup/${APP_GROUP_ID}/`;
+      console.log('[sharedStorage] Initializing App Group...');
       
-      // Ensure the directory exists
+      if (Platform.OS !== 'ios') {
+        console.log('[sharedStorage] Not on iOS, skipping App Group');
+        this.appGroupPath = null;
+        return;
+      }
+      
+      if (!AppGroupBridge) {
+        console.error('[sharedStorage] AppGroupBridge native module not found!');
+        this.appGroupPath = null;
+        return;
+      }
+      
+      // Use native module to get the ACTUAL App Group container path
+      const nativePath = await AppGroupBridge.getAppGroupPath(APP_GROUP_ID);
+      console.log('[sharedStorage] Native App Group path:', nativePath);
+      
+      // Ensure path ends with /
+      this.appGroupPath = nativePath.endsWith('/') ? nativePath : `${nativePath}/`;
+      console.log('[sharedStorage] Set appGroupPath:', this.appGroupPath);
+      
+      // Verify the directory exists
       const dirInfo = await FileSystem.getInfoAsync(this.appGroupPath);
-      if (!dirInfo.exists) {
-        await FileSystem.makeDirectoryAsync(this.appGroupPath, { intermediates: true });
-        logger.info('Created App Group directory', { path: this.appGroupPath });
+      console.log('[sharedStorage] Directory info:', dirInfo);
+      
+      if (dirInfo.exists) {
+        console.log('[sharedStorage] ✅ App Group directory verified');
+        logger.info('App Group initialized', { path: this.appGroupPath });
+      } else {
+        console.warn('[sharedStorage] ⚠️ App Group path does not exist');
+        this.appGroupPath = null;
       }
     } catch (error) {
+      console.error('[sharedStorage] ❌ Failed to initialize App Group:', error);
       logger.error('Failed to initialize App Group', error);
       // Fallback to AsyncStorage only
       this.appGroupPath = null;
@@ -106,12 +133,42 @@ class SharedStorage {
 
   /**
    * Get all pending (unprocessed) shares
+   * Reads from the JSON file that the Swift share extension writes to
    */
   async getPendingShares(): Promise<SharedContent[]> {
     try {
-      const data = await AsyncStorage.getItem(STORAGE_KEYS.PENDING_SHARES);
-      return data ? JSON.parse(data) : [];
+      console.log('[sharedStorage] getPendingShares called');
+      console.log('[sharedStorage] appGroupPath:', this.appGroupPath);
+      
+      if (!this.appGroupPath) {
+        console.log('[sharedStorage] No appGroupPath, using AsyncStorage fallback');
+        // Fallback to AsyncStorage if App Group isn't available
+        const data = await AsyncStorage.getItem(STORAGE_KEYS.PENDING_SHARES);
+        return data ? JSON.parse(data) : [];
+      }
+
+      // Read from the JSON file that Swift writes to
+      const pendingSharesFile = `${this.appGroupPath}pending_shares.json`;
+      console.log('[sharedStorage] Looking for file at:', pendingSharesFile);
+      
+      const fileInfo = await FileSystem.getInfoAsync(pendingSharesFile);
+      console.log('[sharedStorage] File info:', fileInfo);
+      
+      if (!fileInfo.exists) {
+        console.log('[sharedStorage] File does not exist');
+        logger.debug('No pending shares file found');
+        return [];
+      }
+
+      const content = await FileSystem.readAsStringAsync(pendingSharesFile);
+      console.log('[sharedStorage] File content length:', content.length);
+      const shares = JSON.parse(content);
+      console.log('[sharedStorage] Parsed shares count:', shares.length);
+      
+      logger.debug('Read pending shares from file', { count: shares.length });
+      return shares;
     } catch (error) {
+      console.error('[sharedStorage] Error in getPendingShares:', error);
       logger.error('Failed to get pending shares', error);
       return [];
     }
@@ -119,11 +176,24 @@ class SharedStorage {
 
   /**
    * Update pending shares list
+   * Writes to the same JSON file that Swift reads from
    */
   private async setPendingShares(shares: SharedContent[]): Promise<void> {
     try {
-      await AsyncStorage.setItem(STORAGE_KEYS.PENDING_SHARES, JSON.stringify(shares));
-      logger.debug('Updated pending shares', { count: shares.length });
+      if (!this.appGroupPath) {
+        // Fallback to AsyncStorage
+        await AsyncStorage.setItem(STORAGE_KEYS.PENDING_SHARES, JSON.stringify(shares));
+        return;
+      }
+
+      // Write to the JSON file that Swift uses
+      const pendingSharesFile = `${this.appGroupPath}pending_shares.json`;
+      await FileSystem.writeAsStringAsync(
+        pendingSharesFile,
+        JSON.stringify(shares, null, 2)
+      );
+      
+      logger.debug('Updated pending shares file', { count: shares.length });
     } catch (error) {
       logger.error('Failed to set pending shares', error);
       throw error;

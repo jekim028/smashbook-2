@@ -30,6 +30,7 @@ interface MemoryOptionsModalProps {
   memoryId: string;
   currentCaption?: string;
   onSuccess: () => void; // Called after successful deletion or update to refresh the feed
+  onDelete?: (memoryId: string) => void; // Called immediately for optimistic deletion
 }
 
 const MemoryOptionsModal: React.FC<MemoryOptionsModalProps> = ({ 
@@ -37,11 +38,15 @@ const MemoryOptionsModal: React.FC<MemoryOptionsModalProps> = ({
   onClose, 
   memoryId, 
   currentCaption = '',
-  onSuccess 
+  onSuccess,
+  onDelete
 }) => {
   const [isEditingCaption, setIsEditingCaption] = useState(false);
   const [caption, setCaption] = useState(currentCaption);
   const [isLoading, setIsLoading] = useState(false);
+
+  // Log when modal is rendered
+  console.log('[MemoryOptionsModal] RENDER - visible:', visible, 'memoryId:', memoryId);
 
   const handleClose = () => {
     // Reset state when closing
@@ -51,6 +56,7 @@ const MemoryOptionsModal: React.FC<MemoryOptionsModalProps> = ({
   };
 
   const handleDelete = () => {
+    console.log('[MemoryOptionsModal] handleDelete called for memoryId:', memoryId);
     Alert.alert(
       'Delete Memory',
       'Are you sure you want to delete this memory? This action cannot be undone.',
@@ -58,11 +64,15 @@ const MemoryOptionsModal: React.FC<MemoryOptionsModalProps> = ({
         {
           text: 'Cancel',
           style: 'cancel',
+          onPress: () => console.log('[MemoryOptionsModal] Delete cancelled'),
         },
         {
           text: 'Delete',
           style: 'destructive',
-          onPress: deleteMemory,
+          onPress: () => {
+            console.log('[MemoryOptionsModal] Delete confirmed, calling deleteMemory()');
+            deleteMemory();
+          },
         },
       ],
       { cancelable: true }
@@ -70,20 +80,51 @@ const MemoryOptionsModal: React.FC<MemoryOptionsModalProps> = ({
   };
 
   const deleteMemory = async () => {
-    if (!memoryId) return;
-
-    setIsLoading(true);
-    try {
-      await deleteDoc(doc(db, 'memories', memoryId));
-      Alert.alert('Success', 'Memory deleted successfully');
-      onSuccess(); // Refresh the feed
-      handleClose();
-    } catch (error) {
-      console.error('Error deleting memory:', error);
-      Alert.alert('Error', 'Failed to delete memory. Please try again.');
-    } finally {
-      setIsLoading(false);
+    console.log('[MemoryOptionsModal] ========== DELETE STARTED ==========');
+    console.log('[MemoryOptionsModal] memoryId:', memoryId);
+    console.log('[MemoryOptionsModal] onDelete function exists:', !!onDelete);
+    console.log('[MemoryOptionsModal] onSuccess function exists:', !!onSuccess);
+    
+    if (!memoryId) {
+      console.error('[MemoryOptionsModal] ❌ No memoryId provided');
+      return;
     }
+
+    // Close modal immediately for instant feedback
+    console.log('[MemoryOptionsModal] Step 1: Closing modal...');
+    handleClose();
+    
+    // Optimistically remove from UI immediately
+    console.log('[MemoryOptionsModal] Step 2: Calling optimistic delete...');
+    if (onDelete) {
+      console.log('[MemoryOptionsModal] → Calling onDelete(' + memoryId + ')');
+      onDelete(memoryId);
+      console.log('[MemoryOptionsModal] → onDelete() returned');
+    } else {
+      console.warn('[MemoryOptionsModal] ⚠️ onDelete not provided, UI won\'t update optimistically!');
+    }
+    
+    // Delete from Firebase in background
+    console.log('[MemoryOptionsModal] Step 3: Starting Firebase deletion...');
+    try {
+      const memoryRef = doc(db, 'memories', memoryId);
+      console.log('[MemoryOptionsModal] → Firebase path:', memoryRef.path);
+      await deleteDoc(memoryRef);
+      console.log('[MemoryOptionsModal] ✅ Memory deleted successfully from Firebase');
+    } catch (error: any) {
+      console.error('[MemoryOptionsModal] ❌ Firebase deletion failed:', error);
+      console.error('[MemoryOptionsModal] Error code:', error?.code);
+      console.error('[MemoryOptionsModal] Error message:', error?.message);
+      
+      // Only show error if deletion failed
+      Alert.alert('Error', `Failed to delete memory: ${error?.message || 'Unknown error'}`);
+      
+      // Refresh to restore from Firebase if delete failed
+      console.log('[MemoryOptionsModal] Calling onSuccess to refresh from Firebase...');
+      onSuccess();
+    }
+    
+    console.log('[MemoryOptionsModal] ========== DELETE COMPLETE ==========');
   };
 
   const saveCaption = async () => {

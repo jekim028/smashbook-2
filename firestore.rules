@@ -29,6 +29,23 @@ service cloud.firestore {
       allow read, write: if isAuthenticated();
     }
 
+    // Day metadata collection rules
+    match /dayMetadata/{metadataId} {
+      allow read: if isAuthenticated();
+      // Only allow write if the user owns the metadata (userId is in the document ID)
+      allow write: if isAuthenticated() && metadataId.matches(request.auth.uid + '_.*');
+    }
+
+    // Day shares collection rules (for sharing days publicly)
+    match /dayShares/{shareId} {
+      // Anyone can read shared days (public links)
+      allow read: if true;
+      // Only authenticated users can create shares
+      allow create: if isAuthenticated();
+      // Only the creator can update/delete their shares
+      allow update, delete: if isAuthenticated() && isOwner(resource.data.userId);
+    }
+
     // Allow access to all other collections for authenticated users
     match /{document=**} {
       allow read, write: if isAuthenticated();

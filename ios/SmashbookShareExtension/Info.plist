@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>AppGroup</key>
-	<string>group.com.esi.smashbook2</string>
+	<string>group.com.juliarhee.smashbook2</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
@@ -57,7 +57,7 @@
 		<string>$(PRODUCT_MODULE_NAME).ShareExtensionViewController</string>
 	</dict>
 	<key>RCTNewArchEnabled</key>
-	<true/>
+	<false/>
 	<key>ShareExtensionBackgroundColor</key>
 	<dict>
 		<key>alpha</key>

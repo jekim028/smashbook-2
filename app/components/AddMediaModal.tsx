@@ -1,5 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
-import * as FileSystem from 'expo-file-system';
+import * as FileSystem from 'expo-file-system/legacy';
 import * as ImagePicker from 'expo-image-picker';
 import { addDoc, collection, doc, getDoc, getDocs, query, Timestamp, updateDoc, where } from 'firebase/firestore';
 import React, { useEffect, useRef, useState } from 'react';
@@ -321,45 +321,59 @@ const AddMediaModal: React.FC<AddMediaModalProps> = ({ visible, onClose, onSucce
       // Simple file check
       await checkFileSize(selectedMedia.uri);
       
-      // Log what we're storing
-      console.log('Uploading media with data:', {
-        userId: auth.currentUser.uid,
-        type: selectedMedia.type,
-        caption: caption,
-        content: {
-          uri: selectedMedia.uri,
-          thumbnail: selectedMedia.uri,
-          width: selectedMedia.width,
-          height: selectedMedia.height,
-          aspectRatio: selectedMedia.aspectRatio,
-          exifDate: selectedMedia.exifDate,
-          caption: caption // Check if this is redundant
-        }
-      });
+      console.log('[AddMedia] Saving to permanent local storage for instant access...');
+      console.log('[AddMedia] Local URI:', selectedMedia.uri);
       
-      // Create the memory document with simpler structure
+      // Ensure URI has file:// protocol
+      let fileUri = selectedMedia.uri;
+      if (!fileUri.startsWith('file://')) {
+        fileUri = `file://${fileUri}`;
+      }
+      
+      // Save to permanent local storage (DocumentDirectory)
+      const permanentDir = `${FileSystem.documentDirectory}smashbook_images/`;
+      
+      // Create directory if it doesn't exist
+      const dirInfo = await FileSystem.getInfoAsync(permanentDir);
+      if (!dirInfo.exists) {
+        await FileSystem.makeDirectoryAsync(permanentDir, { intermediates: true });
+        console.log('[AddMedia] Created permanent storage directory');
+      }
+      
+      // Generate permanent filename
+      const filename = `photo_${Date.now()}_${Math.random().toString(36).substring(7)}.jpg`;
+      const permanentUri = `${permanentDir}${filename}`;
+      
+      // Copy to permanent location
+      await FileSystem.copyAsync({
+        from: fileUri,
+        to: permanentUri
+      });
+      console.log('[AddMedia] Saved to permanent storage:', permanentUri);
+      
+      // Create the memory document with LOCAL path (instant loading!)
       const memoryRef = await addDoc(collection(db, 'memories'), {
         userId: auth.currentUser.uid,
         type: selectedMedia.type,
         caption: caption,
         isFavorite: false,
         content: {
-          uri: selectedMedia.uri,
-          thumbnail: selectedMedia.uri, // Use same URI for thumbnail
+          uri: permanentUri,           // Local file path - instant!
+          thumbnail: permanentUri,     // Same local path
           width: selectedMedia.width,
           height: selectedMedia.height,
           aspectRatio: selectedMedia.aspectRatio,
           exifDate: selectedMedia.exifDate,
-          caption: caption // Also store in content for backward compatibility
+          caption: caption
         },
         date: Timestamp.now(),
         createdAt: Timestamp.now(),
         sharedWith: selectedFriends,
       });
       
-      console.log('Media uploaded successfully with ID:', memoryRef.id);
+      console.log('[AddMedia] Firestore document created with ID:', memoryRef.id);
       
-      // Update with just the memory ID
+      // Update with memory ID
       await updateDoc(memoryRef, {
         'content.memoryId': memoryRef.id
       });
@@ -372,7 +386,7 @@ const AddMediaModal: React.FC<AddMediaModalProps> = ({ visible, onClose, onSucce
       onClose();
       
     } catch (error) {
-      console.error('Error uploading media:', error);
+      console.error('[AddMedia] Error uploading media:', error);
       Alert.alert('Upload Failed', 'There was an error uploading your media. Please try again.');
     } finally {
       setIsUploading(false);

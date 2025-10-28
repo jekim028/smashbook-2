@@ -605,7 +605,7 @@ export default function Profile() {
             </TouchableOpacity>
             
             <View style={styles.profileInfo}>
-              <Text style={styles.name}>{profileData.displayName}</Text>
+              <Text style={styles.name}>julia</Text>
               
               {editingUsername ? (
                 <View style={styles.usernameEditContainer}>

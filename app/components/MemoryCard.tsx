@@ -1,9 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
-import { Dimensions, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Dimensions, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { isImageCached, markImageAsLoaded } from '../utils/imageCache';
 import { getLinkMetadata } from '../utils/linkPreview';
-// Temporarily disable image caching
-// import { getCachedImageUri } from '../utils/imageCache';
 
 interface MemoryCardProps {
   type: 'photo' | 'note' | 'voice' | 'text' | 'reel' | 'tiktok' | 'restaurant' | 'location' | 'link';
@@ -11,6 +10,7 @@ interface MemoryCardProps {
   isFavorite: boolean;
   onPress: () => void;
   onFavorite: () => void;
+  onLongPress?: () => void; // Add long-press support
   style?: any; // Allow custom styles to be passed
 }
 
@@ -41,31 +41,37 @@ const MemoryCard: React.FC<MemoryCardProps> = ({
   isFavorite,
   onPress,
   onFavorite,
+  onLongPress,
   style,
 }) => {
   const [linkMetadata, setLinkMetadata] = useState<any>(null);
   const [fullImageUri, setFullImageUri] = useState<string | null>(null);
-  // const [cachedUri, setCachedUri] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [hasError, setHasError] = useState(false);
   const [sharedBy, setSharedBy] = useState<{ photoURL: string | null, displayName: string | null } | null>(null);
+  
+  // Get image URI
+  const imageUri = type === 'link' 
+    ? content?.previewImage 
+    : content?.thumbnail || content?.uri || null;
 
   useEffect(() => {
-    console.log('MemoryCard useEffect - type:', type, 'content:', content);
     if (type === 'link' && content?.url && !content.previewImage) {
-      console.log('Triggering fetchLinkMetadata');
       fetchLinkMetadata();
     }
     
     // Updated image loading to include previewImage for links
-    const imageUri = type === 'link' 
-      ? content?.previewImage 
-      : content?.thumbnail || content?.uri || null;
-    console.log('Setting imageUri:', imageUri);
     setFullImageUri(imageUri);
     
-    // Reset states when content changes
-    setIsLoading(true);
+    // Check if image is already in cache - if so, mark as loaded immediately
+    if (imageUri && isImageCached(imageUri)) {
+      setIsLoading(false);
+    } else if (!imageUri) {
+      // No image to load
+      setIsLoading(false);
+    } else {
+      setIsLoading(true);
+    }
     setHasError(false);
 
     // Set shared by info if available
@@ -75,18 +81,20 @@ const MemoryCard: React.FC<MemoryCardProps> = ({
         displayName: content.sharedBy.displayName || null
       });
     }
-  }, [type, content]);
+  }, [type, content, imageUri]);
 
   const fetchLinkMetadata = async () => {
     if (!content.url) return;
     
     try {
-      console.log('Fetching metadata for URL:', content.url);
       const metadata = await getLinkMetadata(content.url);
-      console.log('Received metadata:', metadata);
       setLinkMetadata(metadata);
+      // Update fullImageUri with the fetched image
+      if (metadata?.image) {
+        setFullImageUri(metadata.image);
+      }
     } catch (error) {
-      console.error('Error fetching link metadata:', error);
+      // Silently fail
     }
   };
 
@@ -95,11 +103,11 @@ const MemoryCard: React.FC<MemoryCardProps> = ({
       case 'photo':
         return 'image-outline';
       case 'note':
-        return 'document-text-outline';
+        return 'chatbubble-ellipses-outline';
       case 'voice':
         return 'mic-outline';
       case 'text':
-        return 'chatbubble-outline';
+        return 'chatbubble-ellipses-outline';
       case 'reel':
         return 'videocam-outline';
       case 'tiktok':
@@ -116,25 +124,44 @@ const MemoryCard: React.FC<MemoryCardProps> = ({
   };
 
   const handleImageLoad = () => {
+    // Determine which URI to cache based on the type
+    const uriToCache = type === 'link' 
+      ? (fullImageUri || content?.previewImage)
+      : (content?.thumbnail || content?.uri);
+      
+    markImageAsLoaded(uriToCache || '');
     setIsLoading(false);
+    setHasError(false);
   };
 
-  const handleImageError = () => {
+  const handleImageError = (error?: any) => {
     setIsLoading(false);
     setHasError(true);
   };
 
   const renderMediaContent = () => {
-    // Get the best image source directly
-    const imageUri = content?.thumbnail || content?.uri || '';
+    // Use the imageUri from component scope
+    const mediaImageUri = content?.thumbnail || content?.uri || '';
+    const cached = isImageCached(mediaImageUri);
+    const showLoading = isLoading && !cached && mediaImageUri;
     
     return (
       <View style={styles.mediaContentWrapper}>
         <Image 
-          source={{ uri: imageUri }} 
+          source={{ uri: mediaImageUri }} 
           style={styles.image}
           resizeMode="cover"
+          onLoad={handleImageLoad}
+          onError={handleImageError}
+          fadeDuration={0}
         />
+        
+        {/* Loading indicator */}
+        {showLoading && (
+          <View style={styles.loadingOverlay}>
+            <ActivityIndicator size="small" color={COLORS.accent} />
+          </View>
+        )}
         
         {/* Media type indicators */}
         {type === 'reel' && (
@@ -153,30 +180,57 @@ const MemoryCard: React.FC<MemoryCardProps> = ({
   };
 
   const renderLinkPreview = () => {
+    // Use linkMetadata if available, otherwise fallback to content
+    const title = linkMetadata?.title || content?.title || content?.url || 'Link';
+    const description = linkMetadata?.description || content?.description || '';
+    const publisher = linkMetadata?.publisher || content?.publisher || '';
+    const linkImageUri = fullImageUri || content?.previewImage || '';
+    const hasImage = !!linkImageUri;
+    const linkCached = isImageCached(linkImageUri);
+    const showLinkLoading = isLoading && !linkCached && hasImage;
+    
     return (
       <View style={styles.linkContainer}>
-        {fullImageUri ? (
-          <Image 
-            source={{ uri: fullImageUri }} 
-            style={styles.linkPreviewImage}
-            resizeMode="cover"
-            onLoad={handleImageLoad}
-            onError={handleImageError}
-          />
+        {/* Image Preview */}
+        {hasImage ? (
+          <View style={styles.linkPreviewContainer}>
+            <Image 
+              source={{ uri: linkImageUri }} 
+              style={styles.linkPreviewImage}
+              resizeMode="cover"
+              onLoad={handleImageLoad}
+              onError={handleImageError}
+              fadeDuration={0}
+            />
+          </View>
         ) : (
           <View style={styles.linkIconContainer}>
             <Ionicons name="link-outline" size={32} color={COLORS.accent} />
           </View>
         )}
-        <Text style={styles.linkTitle} numberOfLines={1}>
-          {content?.title || 'Link'}
-        </Text>
+        
+        {/* Content Overlay */}
+        <View style={styles.linkContentOverlay}>
+          {/* Title */}
+          <Text style={styles.linkTitle} numberOfLines={2}>
+            {title}
+          </Text>
+          
+          {/* Description (if available) */}
+          {description ? (
+            <Text style={styles.linkDescription} numberOfLines={2}>
+              {description}
+            </Text>
+          ) : null}
+          
+        {/* Publisher or URL */}
         <Text style={styles.linkUrl} numberOfLines={1}>
-          {content?.url}
+          {publisher || new URL(content?.url || 'https://example.com').hostname}
         </Text>
       </View>
-    );
-  };
+    </View>
+  );
+};
 
   const renderContent = () => {
     // For photo/video content
@@ -232,7 +286,9 @@ const MemoryCard: React.FC<MemoryCardProps> = ({
     <TouchableOpacity 
       style={[styles.container, style]} 
       onPress={onPress}
+      onLongPress={onLongPress}
       activeOpacity={0.85}
+      delayLongPress={500}
     >
       {renderContent()}
       
@@ -307,8 +363,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.lightAccent,
   },
   linkIconContainer: {
-    width: '100%',
-    height: 100,
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: COLORS.lightAccent,
@@ -426,31 +481,44 @@ const styles = StyleSheet.create({
   },
   linkContainer: {
     flex: 1,
-    padding: 12,
-    justifyContent: 'flex-start',
-    backgroundColor: COLORS.cardBackground,
+    position: 'relative',
+    overflow: 'hidden',
   },
   linkPreviewImage: {
     width: '100%',
-    height: 100,
-    borderRadius: 12,
-    marginBottom: 8,
+    height: '100%',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+  },
+  linkContentOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    padding: 12,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    backdropFilter: 'blur(10px)',
   },
   linkTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.text,
-    marginBottom: 2,
-  },
-  linkUrl: {
-    fontSize: 12,
-    color: COLORS.accent,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#FFFFFF',
     marginBottom: 4,
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
   linkDescription: {
-    fontSize: 12,
-    color: COLORS.secondaryText,
-    lineHeight: 16,
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.85)',
+    lineHeight: 14,
+    marginBottom: 4,
+  },
+  linkUrl: {
+    fontSize: 10,
+    color: 'rgba(255, 255, 255, 0.7)',
+    fontWeight: '500',
   },
   loadingContainer: {
     width: '100%',
@@ -501,6 +569,16 @@ const styles = StyleSheet.create({
     position: 'relative',
     width: '100%',
     height: '100%',
+  },
+  loadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#f8f8f8',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   typeIndicator: {
     position: 'absolute',

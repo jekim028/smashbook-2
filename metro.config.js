@@ -1,21 +1,19 @@
-const { getDefaultConfig } = require('@expo/metro-config');
-const { withShareExtension } = require('expo-share-extension/metro');
+const { getDefaultConfig } = require('expo/metro-config');
 const path = require('path');
 
 const config = getDefaultConfig(__dirname);
 
-// Add file extensions
-config.resolver.sourceExts.push('cjs');
-config.resolver.unstable_enablePackageExports = false;
-
-// Explicitly watch share extension and utility files
+// Fix watchFolders to use absolute paths
 config.watchFolders = [
-  ...(config.watchFolders || []),
-  path.resolve(__dirname, 'ShareExtension.tsx'),
-  path.resolve(__dirname, 'utils'),
-  path.resolve(__dirname, 'testing'),
+  path.resolve(__dirname)  // Just watch the project root
 ];
 
-module.exports = withShareExtension(config, {
-  isCSSEnabled: true,
-});
+// Ensure resolver is set up correctly
+config.resolver = {
+  ...config.resolver,
+  nodeModulesPaths: [
+    path.resolve(__dirname, 'node_modules')
+  ]
+};
+
+module.exports = config;

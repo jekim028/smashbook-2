@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex">
+  
+  <!-- These will be dynamically updated -->
+  <title id="pageTitle">View my Smashbook</title>
+  <meta name="description" content="Check out my day on Smashbook!">
+  
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" id="ogUrl" content="">
+  <meta property="og:title" id="ogTitle" content="View my Smashbook">
+  <meta property="og:description" id="ogDescription" content="Check out my day on Smashbook!">
+  <meta property="og:image" id="ogImage" content="">
+  
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:url" id="twitterUrl" content="">
+  <meta property="twitter:title" id="twitterTitle" content="View my Smashbook">
+  <meta property="twitter:description" id="twitterDescription" content="Check out my day on Smashbook!">
+  <meta property="twitter:image" id="twitterImage" content="">
+  
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #fdfcf8 0%, #fff5e6 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 600px;
+      width: 100%;
+      background: white;
+      border-radius: 24px;
+      padding: 40px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+      text-align: center;
+    }
+    
+    .icon {
+      font-size: 64px;
+      margin-bottom: 24px;
+    }
+    
+    h1 {
+      color: #1A3140;
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+    
+    .date {
+      color: #FF914D;
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 24px;
+    }
+    
+    p {
+      color: #8E8E93;
+      font-size: 16px;
+      line-height: 1.6;
+      margin-bottom: 32px;
+    }
+    
+    .preview-images {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+    
+    .preview-image {
+      width: 100%;
+      aspect-ratio: 1;
+      border-radius: 12px;
+      object-fit: cover;
+      background: #f0f0f0;
+    }
+    
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: #FF914D;
+      color: white;
+      padding: 16px 32px;
+      border-radius: 12px;
+      font-size: 18px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s;
+      box-shadow: 0 4px 12px rgba(255, 145, 77, 0.3);
+      border: none;
+      cursor: pointer;
+    }
+    
+    .button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px rgba(255, 145, 77, 0.4);
+    }
+    
+    .button:active {
+      transform: translateY(0);
+    }
+    
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #FF914D;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 20px auto;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="spinner" id="spinner"></div>
+    
+    <div id="content" class="hidden">
+      <div class="icon">📚</div>
+      <h1 id="userName">Smashbook</h1>
+      <div class="date" id="dateText"></div>
+      
+      <div class="preview-images" id="previewImages"></div>
+      
+      <p id="memoryCount"></p>
+      
+      <button class="button" id="openButton">
+        <span>📱</span>
+        <span>View in Smashbook</span>
+      </button>
+    </div>
+    
+    <div id="error" class="hidden">
+      <div class="icon">😕</div>
+      <h1>Oops!</h1>
+      <p id="errorMessage">This shared day could not be found.</p>
+    </div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+  <script>
+    // Firebase configuration
+    const firebaseConfig = {
+      apiKey: "AIzaSyBlheEOIloh-KdMnjunhCYoPmOcp5yNlL8",
+      authDomain: "smashbook-ae1b0.firebaseapp.com",
+      projectId: "smashbook-ae1b0",
+      storageBucket: "smashbook-ae1b0.firebasestorage.app",
+      messagingSenderId: "32927185315",
+      appId: "1:32927185315:web:c2c50f910e61e88b1f0216"
+    };
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    // Get share ID from URL
+    const pathParts = window.location.pathname.split('/');
+    const shareId = pathParts[pathParts.length - 1];
+
+    async function loadSharedDay() {
+      try {
+        console.log('Loading share ID:', shareId);
+        
+        if (!shareId) {
+          throw new Error('No share ID provided');
+        }
+
+        // Get the share document
+        const doc = await db.collection('dayShares').doc(shareId).get();
+        
+        if (!doc.exists) {
+          throw new Error('Share not found');
+        }
+
+        const data = doc.data();
+        console.log('Loaded data:', data);
+
+        // Update page content
+        document.getElementById('userName').textContent = `${data.userName}'s Smashbook`;
+        
+        // Format date
+        const date = new Date(data.date);
+        const formattedDate = date.toLocaleDateString('en-US', {
+          month: 'long',
+          day: 'numeric',
+          year: 'numeric'
+        });
+        document.getElementById('dateText').textContent = formattedDate;
+        
+        // Update memory count
+        const count = data.memories.length;
+        document.getElementById('memoryCount').textContent = 
+          `${count} ${count === 1 ? 'memory' : 'memories'} shared`;
+        
+        // Display preview images
+        const previewContainer = document.getElementById('previewImages');
+        const imagesToShow = data.memories.filter(m => m.imageUri).slice(0, 4);
+        
+        imagesToShow.forEach(memory => {
+          const img = document.createElement('img');
+          img.src = memory.imageUri;
+          img.alt = 'Memory preview';
+          img.className = 'preview-image';
+          img.onerror = () => {
+            img.style.display = 'none'; // Hide if image fails to load
+          };
+          previewContainer.appendChild(img);
+        });
+
+        // Update meta tags
+        const title = `${data.userName}'s Smashbook - ${formattedDate}`;
+        const description = `Check out ${data.userName}'s ${count} ${count === 1 ? 'memory' : 'memories'} from ${formattedDate}`;
+        const imageUrl = imagesToShow[0]?.imageUri || 'https://smashbook.app/og-image.png';
+        
+        document.title = title;
+        document.getElementById('pageTitle').textContent = title;
+        document.getElementById('ogTitle').content = title;
+        document.getElementById('ogDescription').content = description;
+        document.getElementById('ogImage').content = imageUrl;
+        document.getElementById('twitterTitle').content = title;
+        document.getElementById('twitterDescription').content = description;
+        document.getElementById('twitterImage').content = imageUrl;
+        
+        // Set up button
+        const deepLink = `smashbook2://day/${shareId}`;
+        document.getElementById('openButton').addEventListener('click', () => {
+          // Try to open the app
+          window.location.href = deepLink;
+          
+          // After a delay, if still here, show app store or fallback
+          setTimeout(() => {
+            if (!document.hidden) {
+              // Still on the page - app might not be installed
+              if (confirm('Smashbook app not found. Would you like to download it from the App Store?')) {
+                window.location.href = 'https://apps.apple.com/app/smashbook';
+              }
+            }
+          }, 1500);
+        });
+
+        // Update view count
+        db.collection('dayShares').doc(shareId).update({
+          viewCount: firebase.firestore.FieldValue.increment(1)
+        }).catch(err => console.error('Failed to update view count:', err));
+
+        // Show content
+        document.getElementById('spinner').classList.add('hidden');
+        document.getElementById('content').classList.remove('hidden');
+
+      } catch (error) {
+        console.error('Error loading shared day:', error);
+        document.getElementById('spinner').classList.add('hidden');
+        document.getElementById('error').classList.remove('hidden');
+        document.getElementById('errorMessage').textContent = error.message;
+      }
+    }
+
+    // Load the shared day when page loads
+    loadSharedDay();
+  </script>
+</body>
+</html>
+

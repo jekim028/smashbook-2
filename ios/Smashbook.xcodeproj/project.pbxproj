@@ -9,28 +9,30 @@
 /* Begin PBXBuildFile section */
 		13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 13B07FB51A68108700A75B9A /* Images.xcassets */; };
 		3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */; };
-		46D9323B88A3AC947C92F27C /* libPods-Smashbook.a in Frameworks */ = {isa = PBXBuildFile; fileRef = D684CC673860FA1942A1C4A3 /* libPods-Smashbook.a */; };
-		97185ADE35EA916F451E504E /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 133947A90A867F2B726AA3C1 /* ExpoModulesProvider.swift */; };
-		A2667457FBA674BFD73B732E /* libPods-SmashbookShareExtension.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 304DC6DE062C820E20400CDD /* libPods-SmashbookShareExtension.a */; };
+		6430B1EB2EAA0F4300320995 /* AppGroupBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6430B1EA2EAA0F4300320995 /* AppGroupBridge.swift */; };
+		6430B1EC2EAA0F4300320995 /* AppGroupBridge.m in Sources */ = {isa = PBXBuildFile; fileRef = 6430B1E92EAA0F4300320995 /* AppGroupBridge.m */; };
+		8C356BF7C38EADBFC5FAE052 /* libPods-Smashbook.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 0C848F6BD263EB9985A1EC6A /* libPods-Smashbook.a */; };
+		8FA6A1769D0A4BC483E7D182 /* ShareExtensionViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3BEB2DA3559A4509B3652D84 /* ShareExtensionViewController.swift */; };
+		9DF0570E4202D6FF9DFC7D5F /* libPods-SmashbookShareExtension.a in Frameworks */ = {isa = PBXBuildFile; fileRef = D5A112996F23A8EEB8301857 /* libPods-SmashbookShareExtension.a */; };
+		AF45145BF45740E380DE0D37 /* SmashbookShareExtension.appex in Copy Files */ = {isa = PBXBuildFile; fileRef = 2097E9AD703A43C8877AD5E1 /* SmashbookShareExtension.appex */; };
 		BB2F792D24A3F905000567C9 /* Expo.plist in Resources */ = {isa = PBXBuildFile; fileRef = BB2F792C24A3F905000567C9 /* Expo.plist */; };
-		BEE1E9667CC54207AE8C950F /* SmashbookShareExtension.appex in Copy Files */ = {isa = PBXBuildFile; fileRef = 4D2A16EB8B88460EA02DB141 /* SmashbookShareExtension.appex */; };
-		D0CABB634AE845F2B470E720 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31BE0D113D2A3AFEFD6A0309 /* ExpoModulesProvider.swift */; };
-		EFDF7AF4051A4572A48C8F42 /* ShareExtensionViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 280DB22ECC80460AA416016A /* ShareExtensionViewController.swift */; };
+		C058F2B30DBFC6B3F09F5FF0 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = C7B9EFAD97128C182ED18E4E /* PrivacyInfo.xcprivacy */; };
+		EF8297E57D7C98F72BCD16A7 /* ExpoModulesProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3E4791BE9D8DA41C8ED81569 /* ExpoModulesProvider.swift */; };
 		F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F11748412D0307B40044C1D9 /* AppDelegate.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		EBB6F9AAAC5E4CBC9BA4DBBC /* PBXContainerItemProxy */ = {
+		DC629A5D996E4BDA917B330C /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 83CBB9F71A601CBA00E9B192 /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = 60D9E0B9E64D466F8F239442;
+			remoteGlobalIDString = 4F9FFB18FFA24F848B9D27DA;
 			remoteInfo = SmashbookShareExtension;
 		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		1607A54062F542B58CFDE29A /* Embed Foundation Extensions */ = {
+		0819991211D3428DA7F30EBE /* Embed Foundation Extensions */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = "";
@@ -40,13 +42,13 @@
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		3DD73175347347F4AD196FDC /* Copy Files */ = {
+		32F49AF18BDA46EBB86D3C0D /* Copy Files */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = "";
 			dstSubfolderSpec = 13;
 			files = (
-				BEE1E9667CC54207AE8C950F /* SmashbookShareExtension.appex in Copy Files */,
+				AF45145BF45740E380DE0D37 /* SmashbookShareExtension.appex in Copy Files */,
 			);
 			name = "Copy Files";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -54,23 +56,25 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		133947A90A867F2B726AA3C1 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-Smashbook/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
-		135AB9A4B25093FD04415F0B /* Pods-SmashbookShareExtension.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SmashbookShareExtension.debug.xcconfig"; path = "Target Support Files/Pods-SmashbookShareExtension/Pods-SmashbookShareExtension.debug.xcconfig"; sourceTree = "<group>"; };
+		0C848F6BD263EB9985A1EC6A /* libPods-Smashbook.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-Smashbook.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07F961A680F5B00A75B9A /* Smashbook.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Smashbook.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		13B07FB51A68108700A75B9A /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; name = Images.xcassets; path = Smashbook/Images.xcassets; sourceTree = "<group>"; };
 		13B07FB61A68108700A75B9A /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = Info.plist; path = Smashbook/Info.plist; sourceTree = "<group>"; };
-		280DB22ECC80460AA416016A /* ShareExtensionViewController.swift */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 4; includeInIndex = 0; lastKnownFileType = sourcecode.swift; name = ShareExtensionViewController.swift; path = ShareExtensionViewController.swift; sourceTree = "<group>"; };
-		304DC6DE062C820E20400CDD /* libPods-SmashbookShareExtension.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-SmashbookShareExtension.a"; sourceTree = BUILT_PRODUCTS_DIR; };
-		31BE0D113D2A3AFEFD6A0309 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-SmashbookShareExtension/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
-		4D2A16EB8B88460EA02DB141 /* SmashbookShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = undefined; name = SmashbookShareExtension.appex; path = SmashbookShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
-		4D91378F95F5434EAC2DDCDD /* SmashbookShareExtension.entitlements */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = undefined; includeInIndex = 0; lastKnownFileType = unknown; name = SmashbookShareExtension.entitlements; path = SmashbookShareExtension.entitlements; sourceTree = "<group>"; };
-		56DA0B60783765A5BEDED586 /* Pods-Smashbook.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Smashbook.debug.xcconfig"; path = "Target Support Files/Pods-Smashbook/Pods-Smashbook.debug.xcconfig"; sourceTree = "<group>"; };
-		A22DE7AC3BE31EF612771E73 /* Pods-Smashbook.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Smashbook.release.xcconfig"; path = "Target Support Files/Pods-Smashbook/Pods-Smashbook.release.xcconfig"; sourceTree = "<group>"; };
+		2097E9AD703A43C8877AD5E1 /* SmashbookShareExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; fileEncoding = 9; includeInIndex = 0; path = SmashbookShareExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		3BEB2DA3559A4509B3652D84 /* ShareExtensionViewController.swift */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 4; includeInIndex = 0; lastKnownFileType = sourcecode.swift; path = ShareExtensionViewController.swift; sourceTree = "<group>"; };
+		3E4791BE9D8DA41C8ED81569 /* ExpoModulesProvider.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; name = ExpoModulesProvider.swift; path = "Pods/Target Support Files/Pods-Smashbook/ExpoModulesProvider.swift"; sourceTree = "<group>"; };
+		5C701E59A4D7418BA9BC2B98 /* Info.plist */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 4; includeInIndex = 0; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		6430B1E92EAA0F4300320995 /* AppGroupBridge.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = AppGroupBridge.m; sourceTree = "<group>"; };
+		6430B1EA2EAA0F4300320995 /* AppGroupBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppGroupBridge.swift; sourceTree = "<group>"; };
+		7E30F1C580DBA0EBE75A5CEA /* Pods-SmashbookShareExtension.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SmashbookShareExtension.release.xcconfig"; path = "Target Support Files/Pods-SmashbookShareExtension/Pods-SmashbookShareExtension.release.xcconfig"; sourceTree = "<group>"; };
+		919C6208B9BB47B79B41C290 /* SmashbookShareExtension.entitlements */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 9; includeInIndex = 0; lastKnownFileType = unknown; path = SmashbookShareExtension.entitlements; sourceTree = "<group>"; };
+		A14BE84BB8022B55A72FFAEB /* Pods-SmashbookShareExtension.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SmashbookShareExtension.debug.xcconfig"; path = "Target Support Files/Pods-SmashbookShareExtension/Pods-SmashbookShareExtension.debug.xcconfig"; sourceTree = "<group>"; };
+		A4DDEF2154FCEB957369FF82 /* Pods-Smashbook.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Smashbook.debug.xcconfig"; path = "Target Support Files/Pods-Smashbook/Pods-Smashbook.debug.xcconfig"; sourceTree = "<group>"; };
 		AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = file.storyboard; name = SplashScreen.storyboard; path = Smashbook/SplashScreen.storyboard; sourceTree = "<group>"; };
 		BB2F792C24A3F905000567C9 /* Expo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Expo.plist; sourceTree = "<group>"; };
-		C07EF51282214972A15639E1 /* Info.plist */ = {isa = PBXFileReference; explicitFileType = undefined; fileEncoding = 4; includeInIndex = 0; lastKnownFileType = text.plist.xml; name = Info.plist; path = Info.plist; sourceTree = "<group>"; };
-		C936864140CE620CCBB532C0 /* Pods-SmashbookShareExtension.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-SmashbookShareExtension.release.xcconfig"; path = "Target Support Files/Pods-SmashbookShareExtension/Pods-SmashbookShareExtension.release.xcconfig"; sourceTree = "<group>"; };
-		D684CC673860FA1942A1C4A3 /* libPods-Smashbook.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-Smashbook.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		C34D594F44DD15B35AA4F683 /* Pods-Smashbook.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Smashbook.release.xcconfig"; path = "Target Support Files/Pods-Smashbook/Pods-Smashbook.release.xcconfig"; sourceTree = "<group>"; };
+		C7B9EFAD97128C182ED18E4E /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xml; name = PrivacyInfo.xcprivacy; path = Smashbook/PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		D5A112996F23A8EEB8301857 /* libPods-SmashbookShareExtension.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-SmashbookShareExtension.a"; sourceTree = BUILT_PRODUCTS_DIR; };
 		ED297162215061F000B7C4FE /* JavaScriptCore.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = JavaScriptCore.framework; path = System/Library/Frameworks/JavaScriptCore.framework; sourceTree = SDKROOT; };
 		F11748412D0307B40044C1D9 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppDelegate.swift; path = Smashbook/AppDelegate.swift; sourceTree = "<group>"; };
 		F11748442D0722820044C1D9 /* Smashbook-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = "Smashbook-Bridging-Header.h"; path = "Smashbook/Smashbook-Bridging-Header.h"; sourceTree = "<group>"; };
@@ -81,58 +85,44 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				46D9323B88A3AC947C92F27C /* libPods-Smashbook.a in Frameworks */,
+				8C356BF7C38EADBFC5FAE052 /* libPods-Smashbook.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		663281C292FA483F8F58CA2A /* Frameworks */ = {
+		6B411175237F4636B98B0127 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A2667457FBA674BFD73B732E /* libPods-SmashbookShareExtension.a in Frameworks */,
+				9DF0570E4202D6FF9DFC7D5F /* libPods-SmashbookShareExtension.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		081F252669DA847B09C05F94 /* ExpoModulesProviders */ = {
+		0FCBCF5FA116B6A4B6285E63 /* Pods */ = {
 			isa = PBXGroup;
 			children = (
-				232CF04F2B91EEFA11B93439 /* Smashbook */,
-				CE0DC5C87C5AA5966129B346 /* SmashbookShareExtension */,
+				A4DDEF2154FCEB957369FF82 /* Pods-Smashbook.debug.xcconfig */,
+				C34D594F44DD15B35AA4F683 /* Pods-Smashbook.release.xcconfig */,
+				A14BE84BB8022B55A72FFAEB /* Pods-SmashbookShareExtension.debug.xcconfig */,
+				7E30F1C580DBA0EBE75A5CEA /* Pods-SmashbookShareExtension.release.xcconfig */,
 			);
-			name = ExpoModulesProviders;
-			sourceTree = "<group>";
-		};
-		0F64BFA3F28149EDBEF38A1D /* SmashbookShareExtension */ = {
-			isa = PBXGroup;
-			children = (
-				280DB22ECC80460AA416016A /* ShareExtensionViewController.swift */,
-				C07EF51282214972A15639E1 /* Info.plist */,
-				4D91378F95F5434EAC2DDCDD /* SmashbookShareExtension.entitlements */,
-			);
-			name = SmashbookShareExtension;
-			path = SmashbookShareExtension;
+			path = Pods;
 			sourceTree = "<group>";
 		};
 		13B07FAE1A68108700A75B9A /* Smashbook */ = {
 			isa = PBXGroup;
 			children = (
+				6430B1E92EAA0F4300320995 /* AppGroupBridge.m */,
+				6430B1EA2EAA0F4300320995 /* AppGroupBridge.swift */,
 				F11748412D0307B40044C1D9 /* AppDelegate.swift */,
 				F11748442D0722820044C1D9 /* Smashbook-Bridging-Header.h */,
 				BB2F792B24A3F905000567C9 /* Supporting */,
 				13B07FB51A68108700A75B9A /* Images.xcassets */,
 				13B07FB61A68108700A75B9A /* Info.plist */,
 				AA286B85B6C04FC6940260E9 /* SplashScreen.storyboard */,
-			);
-			name = Smashbook;
-			sourceTree = "<group>";
-		};
-		232CF04F2B91EEFA11B93439 /* Smashbook */ = {
-			isa = PBXGroup;
-			children = (
-				133947A90A867F2B726AA3C1 /* ExpoModulesProvider.swift */,
+				C7B9EFAD97128C182ED18E4E /* PrivacyInfo.xcprivacy */,
 			);
 			name = Smashbook;
 			sourceTree = "<group>";
@@ -141,8 +131,8 @@
 			isa = PBXGroup;
 			children = (
 				ED297162215061F000B7C4FE /* JavaScriptCore.framework */,
-				D684CC673860FA1942A1C4A3 /* libPods-Smashbook.a */,
-				304DC6DE062C820E20400CDD /* libPods-SmashbookShareExtension.a */,
+				0C848F6BD263EB9985A1EC6A /* libPods-Smashbook.a */,
+				D5A112996F23A8EEB8301857 /* libPods-SmashbookShareExtension.a */,
 			);
 			name = Frameworks;
 			sourceTree = "<group>";
@@ -161,9 +151,9 @@
 				832341AE1AAA6A7D00B99B32 /* Libraries */,
 				83CBBA001A601CBA00E9B192 /* Products */,
 				2D16E6871FA4F8E400B85C8A /* Frameworks */,
-				0F64BFA3F28149EDBEF38A1D /* SmashbookShareExtension */,
-				89CFC5B3E25C12C9738B9005 /* Pods */,
-				081F252669DA847B09C05F94 /* ExpoModulesProviders */,
+				FFCD9F0330984267B540BB7F /* SmashbookShareExtension */,
+				0FCBCF5FA116B6A4B6285E63 /* Pods */,
+				9E891391FCF0E88F0468A289 /* ExpoModulesProviders */,
 			);
 			indentWidth = 2;
 			sourceTree = "<group>";
@@ -174,21 +164,17 @@
 			isa = PBXGroup;
 			children = (
 				13B07F961A680F5B00A75B9A /* Smashbook.app */,
-				4D2A16EB8B88460EA02DB141 /* SmashbookShareExtension.appex */,
+				2097E9AD703A43C8877AD5E1 /* SmashbookShareExtension.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
-		89CFC5B3E25C12C9738B9005 /* Pods */ = {
+		9E891391FCF0E88F0468A289 /* ExpoModulesProviders */ = {
 			isa = PBXGroup;
 			children = (
-				56DA0B60783765A5BEDED586 /* Pods-Smashbook.debug.xcconfig */,
-				A22DE7AC3BE31EF612771E73 /* Pods-Smashbook.release.xcconfig */,
-				135AB9A4B25093FD04415F0B /* Pods-SmashbookShareExtension.debug.xcconfig */,
-				C936864140CE620CCBB532C0 /* Pods-SmashbookShareExtension.release.xcconfig */,
+				D7FD2624951850654D9B1840 /* Smashbook */,
 			);
-			name = Pods;
-			path = Pods;
+			name = ExpoModulesProviders;
 			sourceTree = "<group>";
 		};
 		BB2F792B24A3F905000567C9 /* Supporting */ = {
@@ -200,12 +186,22 @@
 			path = Smashbook/Supporting;
 			sourceTree = "<group>";
 		};
-		CE0DC5C87C5AA5966129B346 /* SmashbookShareExtension */ = {
+		D7FD2624951850654D9B1840 /* Smashbook */ = {
 			isa = PBXGroup;
 			children = (
-				31BE0D113D2A3AFEFD6A0309 /* ExpoModulesProvider.swift */,
+				3E4791BE9D8DA41C8ED81569 /* ExpoModulesProvider.swift */,
 			);
-			name = SmashbookShareExtension;
+			name = Smashbook;
+			sourceTree = "<group>";
+		};
+		FFCD9F0330984267B540BB7F /* SmashbookShareExtension */ = {
+			isa = PBXGroup;
+			children = (
+				3BEB2DA3559A4509B3652D84 /* ShareExtensionViewController.swift */,
+				5C701E59A4D7418BA9BC2B98 /* Info.plist */,
+				919C6208B9BB47B79B41C290 /* SmashbookShareExtension.entitlements */,
+			);
+			path = SmashbookShareExtension;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -216,38 +212,34 @@
 			buildConfigurationList = 13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "Smashbook" */;
 			buildPhases = (
 				08A4A3CD28434E44B6B9DE2E /* [CP] Check Pods Manifest.lock */,
-				4C8E3E9C78E2A66D48FCAF71 /* [Expo] Configure project */,
+				3347AFA1C46FF0363F424AB4 /* [Expo] Configure project */,
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */,
-				1607A54062F542B58CFDE29A /* Embed Foundation Extensions */,
-				3DD73175347347F4AD196FDC /* Copy Files */,
-				BB8C97DD63E692A2C2244715 /* [CP] Embed Pods Frameworks */,
+				0819991211D3428DA7F30EBE /* Embed Foundation Extensions */,
+				32F49AF18BDA46EBB86D3C0D /* Copy Files */,
+				A55B2C97CD1CC2B4FD58F34E /* [CP] Embed Pods Frameworks */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				B45CDBD03F0E41AAA6252362 /* PBXTargetDependency */,
+				889BB83DDF1046F1873FF00D /* PBXTargetDependency */,
 			);
 			name = Smashbook;
 			productName = Smashbook;
 			productReference = 13B07F961A680F5B00A75B9A /* Smashbook.app */;
 			productType = "com.apple.product-type.application";
 		};
-		60D9E0B9E64D466F8F239442 /* SmashbookShareExtension */ = {
+		4F9FFB18FFA24F848B9D27DA /* SmashbookShareExtension */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 0705CEBD09E040A4829421EB /* Build configuration list for PBXNativeTarget "SmashbookShareExtension" */;
+			buildConfigurationList = 4A7E4A761CD646768D7203C0 /* Build configuration list for PBXNativeTarget "SmashbookShareExtension" */;
 			buildPhases = (
-				87E7F811DD544329DA387246 /* [CP] Check Pods Manifest.lock */,
-				11FE65EDE0964C429E21D296 /* Start Packager */,
-				415DFC2F629BA72A92A442EE /* [Expo] Configure project */,
-				DA55A8BAC0CA4BD9A73BB847 /* Sources */,
-				663281C292FA483F8F58CA2A /* Frameworks */,
-				180FAFEAE80246F9AA81196B /* Resources */,
-				D10BE68171374499BE7608A9 /* Bundle React Native code and images */,
-				AB88E3D6903909CE3AB595C6 /* [CP] Copy Pods Resources */,
+				E424EEACA51A028F0495B5B6 /* [CP] Check Pods Manifest.lock */,
+				26124ABA75F94448B91B9DF3 /* Sources */,
+				6B411175237F4636B98B0127 /* Frameworks */,
+				2AE2DCC564A44F60BBB05842 /* Resources */,
 			);
 			buildRules = (
 			);
@@ -255,7 +247,7 @@
 			);
 			name = SmashbookShareExtension;
 			productName = SmashbookShareExtension;
-			productReference = 4D2A16EB8B88460EA02DB141 /* SmashbookShareExtension.appex */;
+			productReference = 2097E9AD703A43C8877AD5E1 /* SmashbookShareExtension.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
 /* End PBXNativeTarget section */
@@ -269,7 +261,7 @@
 					13B07F861A680F5B00A75B9A = {
 						LastSwiftMigration = 1250;
 					};
-					60D9E0B9E64D466F8F239442 = {
+					4F9FFB18FFA24F848B9D27DA = {
 						LastSwiftMigration = 1250;
 					};
 				};
@@ -288,7 +280,7 @@
 			projectRoot = "";
 			targets = (
 				13B07F861A680F5B00A75B9A /* Smashbook */,
-				60D9E0B9E64D466F8F239442 /* SmashbookShareExtension */,
+				4F9FFB18FFA24F848B9D27DA /* SmashbookShareExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -301,10 +293,11 @@
 				BB2F792D24A3F905000567C9 /* Expo.plist in Resources */,
 				13B07FBF1A68108700A75B9A /* Images.xcassets in Resources */,
 				3E461D99554A48A4959DE609 /* SplashScreen.storyboard in Resources */,
+				C058F2B30DBFC6B3F09F5FF0 /* PrivacyInfo.xcprivacy in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		180FAFEAE80246F9AA81196B /* Resources */ = {
+		2AE2DCC564A44F60BBB05842 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -353,45 +346,7 @@
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
-		11FE65EDE0964C429E21D296 /* Start Packager */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-			);
-			name = "Start Packager";
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "export RCT_METRO_PORT=\"${RCT_METRO_PORT:=8081}\"\necho \"export RCT_METRO_PORT=${RCT_METRO_PORT}\" > \"${SRCROOT}/../node_modules/react-native/scripts/.packager.env\"\nif [ -z \"${RCT_NO_LAUNCH_PACKAGER+xxx}\" ] ; then\n  if nc -w 5 -z localhost ${RCT_METRO_PORT} ; then\n    if ! curl -s \"http://localhost:${RCT_METRO_PORT}/status\" | grep -q \"packager-status:running\" ; then\n      echo \"Port ${RCT_METRO_PORT} already in use, packager is either not running or not running correctly\"\n      exit 2\n    fi\n  else\n    open \"$SRCROOT/../node_modules/react-native/scripts/launchPackager.command\" || echo \"Can't start packager automatically\"\n  fi\nfi\n";
-		};
-		415DFC2F629BA72A92A442EE /* [Expo] Configure project */ = {
-			isa = PBXShellScriptBuildPhase;
-			alwaysOutOfDate = 1;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"$(SRCROOT)/.xcode.env",
-				"$(SRCROOT)/.xcode.env.local",
-				"$(SRCROOT)/SmashbookShareExtension/SmashbookShareExtension.entitlements",
-				"$(SRCROOT)/Pods/Target Support Files/Pods-SmashbookShareExtension/expo-configure-project.sh",
-			);
-			name = "[Expo] Configure project";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-				"$(SRCROOT)/Pods/Target Support Files/Pods-SmashbookShareExtension/ExpoModulesProvider.swift",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "# This script configures Expo modules and generates the modules provider file.\nbash -l -c \"./Pods/Target\\ Support\\ Files/Pods-SmashbookShareExtension/expo-configure-project.sh\"\n";
-		};
-		4C8E3E9C78E2A66D48FCAF71 /* [Expo] Configure project */ = {
+		3347AFA1C46FF0363F424AB4 /* [Expo] Configure project */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
@@ -427,13 +382,16 @@
 				"${PODS_CONFIGURATION_BUILD_DIR}/EXTaskManager/ExpoTaskManager_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/ExpoFileSystem/ExpoFileSystem_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/ExpoSystemUI/ExpoSystemUI_privacy.bundle",
+				"${PODS_CONFIGURATION_BUILD_DIR}/RCT-Folly/RCT-Folly_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/RNCAsyncStorage/RNCAsyncStorage_resources.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/RNSVG/RNSVGFilters.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/React-Core/React-Core_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/React-cxxreact/React-cxxreact_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/SDWebImage/SDWebImage.bundle",
+				"${PODS_CONFIGURATION_BUILD_DIR}/boost/boost_privacy.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/expo-dev-launcher/EXDevLauncher.bundle",
 				"${PODS_CONFIGURATION_BUILD_DIR}/expo-dev-menu/EXDevMenu.bundle",
+				"${PODS_CONFIGURATION_BUILD_DIR}/glog/glog_privacy.bundle",
 			);
 			name = "[CP] Copy Pods Resources";
 			outputPaths = (
@@ -442,20 +400,41 @@
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoTaskManager_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoFileSystem_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoSystemUI_privacy.bundle",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/RCT-Folly_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/RNCAsyncStorage_resources.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/RNSVGFilters.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/React-Core_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/React-cxxreact_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/SDWebImage.bundle",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/boost_privacy.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/EXDevLauncher.bundle",
 				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/EXDevMenu.bundle",
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/glog_privacy.bundle",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Smashbook/Pods-Smashbook-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		87E7F811DD544329DA387246 /* [CP] Check Pods Manifest.lock */ = {
+		A55B2C97CD1CC2B4FD58F34E /* [CP] Embed Pods Frameworks */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-Smashbook/Pods-Smashbook-frameworks.sh",
+				"${PODS_XCFRAMEWORKS_BUILD_DIR}/hermes-engine/Pre-built/hermes.framework/hermes",
+			);
+			name = "[CP] Embed Pods Frameworks";
+			outputPaths = (
+				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/hermes.framework",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Smashbook/Pods-Smashbook-frameworks.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		E424EEACA51A028F0495B5B6 /* [CP] Check Pods Manifest.lock */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -477,82 +456,6 @@
 			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
 			showEnvVarsInLog = 0;
 		};
-		AB88E3D6903909CE3AB595C6 /* [CP] Copy Pods Resources */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-SmashbookShareExtension/Pods-SmashbookShareExtension-resources.sh",
-				"${PODS_CONFIGURATION_BUILD_DIR}/EXConstants/EXConstants.bundle",
-				"${PODS_CONFIGURATION_BUILD_DIR}/EXConstants/ExpoConstants_privacy.bundle",
-				"${PODS_CONFIGURATION_BUILD_DIR}/EXTaskManager/ExpoTaskManager_privacy.bundle",
-				"${PODS_CONFIGURATION_BUILD_DIR}/ExpoFileSystem/ExpoFileSystem_privacy.bundle",
-				"${PODS_CONFIGURATION_BUILD_DIR}/ExpoSystemUI/ExpoSystemUI_privacy.bundle",
-				"${PODS_CONFIGURATION_BUILD_DIR}/RNCAsyncStorage/RNCAsyncStorage_resources.bundle",
-				"${PODS_CONFIGURATION_BUILD_DIR}/RNSVG/RNSVGFilters.bundle",
-				"${PODS_CONFIGURATION_BUILD_DIR}/React-Core/React-Core_privacy.bundle",
-				"${PODS_CONFIGURATION_BUILD_DIR}/React-cxxreact/React-cxxreact_privacy.bundle",
-				"${PODS_CONFIGURATION_BUILD_DIR}/SDWebImage/SDWebImage.bundle",
-				"${PODS_CONFIGURATION_BUILD_DIR}/expo-dev-launcher/EXDevLauncher.bundle",
-				"${PODS_CONFIGURATION_BUILD_DIR}/expo-dev-menu/EXDevMenu.bundle",
-			);
-			name = "[CP] Copy Pods Resources";
-			outputPaths = (
-				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/EXConstants.bundle",
-				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoConstants_privacy.bundle",
-				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoTaskManager_privacy.bundle",
-				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoFileSystem_privacy.bundle",
-				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/ExpoSystemUI_privacy.bundle",
-				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/RNCAsyncStorage_resources.bundle",
-				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/RNSVGFilters.bundle",
-				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/React-Core_privacy.bundle",
-				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/React-cxxreact_privacy.bundle",
-				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/SDWebImage.bundle",
-				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/EXDevLauncher.bundle",
-				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/EXDevMenu.bundle",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-SmashbookShareExtension/Pods-SmashbookShareExtension-resources.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
-		BB8C97DD63E692A2C2244715 /* [CP] Embed Pods Frameworks */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-				"${PODS_ROOT}/Target Support Files/Pods-Smashbook/Pods-Smashbook-frameworks.sh",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/React-Core-prebuilt/React.framework/React",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/ReactNativeDependencies/ReactNativeDependencies.framework/ReactNativeDependencies",
-				"${PODS_XCFRAMEWORKS_BUILD_DIR}/hermes-engine/Pre-built/hermes.framework/hermes",
-			);
-			name = "[CP] Embed Pods Frameworks";
-			outputPaths = (
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/React.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/ReactNativeDependencies.framework",
-				"${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}/hermes.framework",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Smashbook/Pods-Smashbook-frameworks.sh\"\n";
-			showEnvVarsInLog = 0;
-		};
-		D10BE68171374499BE7608A9 /* Bundle React Native code and images */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputPaths = (
-			);
-			name = "Bundle React Native code and images";
-			outputPaths = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "set -e\n  NODE_BINARY=${NODE_BINARY:-node}\n  \n  # Source environment files\n  if [[ -f \"$PODS_ROOT/../.xcode.env\" ]]; then\n    source \"$PODS_ROOT/../.xcode.env\"\n  fi\n  if [[ -f \"$PODS_ROOT/../.xcode.env.local\" ]]; then\n    source \"$PODS_ROOT/../.xcode.env.local\"\n  fi\n  \n  # Set project root\n  export PROJECT_ROOT=\"$PROJECT_DIR\"/..\n  \n  # Set entry file\n  export ENTRY_FILE=\"$PROJECT_ROOT/index.share.js\"\n  \n  # Set up Expo CLI\n  if [[ -z \"$CLI_PATH\" ]]; then\n    export CLI_PATH=\"$(\"$NODE_BINARY\" --print \"require.resolve('@expo/cli', { paths: [require.resolve('expo/package.json')] })\")\"\n  fi\n  \n  if [[ -z \"$BUNDLE_COMMAND\" ]]; then\n    export BUNDLE_COMMAND=\"export:embed\"\n  fi\n  \n  REACT_NATIVE_SCRIPTS_PATH=$(\"$NODE_BINARY\" --print \"require('path').dirname(require.resolve('react-native/package.json')) + '/scripts'\")\n  WITH_ENVIRONMENT=\"$REACT_NATIVE_SCRIPTS_PATH/xcode/with-environment.sh\"\n  REACT_NATIVE_XCODE=\"$REACT_NATIVE_SCRIPTS_PATH/react-native-xcode.sh\"\n  \n  /bin/sh -c \"$WITH_ENVIRONMENT $REACT_NATIVE_XCODE\"";
-		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
@@ -560,39 +463,68 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				6430B1EB2EAA0F4300320995 /* AppGroupBridge.swift in Sources */,
+				6430B1EC2EAA0F4300320995 /* AppGroupBridge.m in Sources */,
 				F11748422D0307B40044C1D9 /* AppDelegate.swift in Sources */,
-				97185ADE35EA916F451E504E /* ExpoModulesProvider.swift in Sources */,
+				EF8297E57D7C98F72BCD16A7 /* ExpoModulesProvider.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		DA55A8BAC0CA4BD9A73BB847 /* Sources */ = {
+		26124ABA75F94448B91B9DF3 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				EFDF7AF4051A4572A48C8F42 /* ShareExtensionViewController.swift in Sources */,
-				D0CABB634AE845F2B470E720 /* ExpoModulesProvider.swift in Sources */,
+				8FA6A1769D0A4BC483E7D182 /* ShareExtensionViewController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		B45CDBD03F0E41AAA6252362 /* PBXTargetDependency */ = {
+		889BB83DDF1046F1873FF00D /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
-			target = 60D9E0B9E64D466F8F239442 /* SmashbookShareExtension */;
-			targetProxy = EBB6F9AAAC5E4CBC9BA4DBBC /* PBXContainerItemProxy */;
+			target = 4F9FFB18FFA24F848B9D27DA /* SmashbookShareExtension */;
+			targetProxy = DC629A5D996E4BDA917B330C /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		12CCA2B9CB28484FB13FE37E /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = A14BE84BB8022B55A72FFAEB /* Pods-SmashbookShareExtension.debug.xcconfig */;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_ENTITLEMENTS = SmashbookShareExtension/SmashbookShareExtension.entitlements;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 5W7Y2BUALC;
+				ENABLE_ON_DEMAND_RESOURCES = NO;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = SmashbookShareExtension/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0.0;
+				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
+				PRODUCT_BUNDLE_IDENTIFIER = com.juliarhee.smashbook2.ShareExtension;
+				PRODUCT_NAME = SmashbookShareExtension;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_VERSION = 5.0;
+				VERSIONING_SYSTEM = "apple-generic";
+			};
+			name = Debug;
+		};
 		13B07F941A680F5B00A75B9A /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 56DA0B60783765A5BEDED586 /* Pods-Smashbook.debug.xcconfig */;
+			baseConfigurationReference = A4DDEF2154FCEB957369FF82 /* Pods-Smashbook.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Smashbook/Smashbook.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 5W7Y2BUALC;
 				ENABLE_BITCODE = NO;
 				GCC_PREPROCESSOR_DEFINITIONS = (
 					"$(inherited)",
@@ -611,7 +543,7 @@
 					"-lc++",
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
-				PRODUCT_BUNDLE_IDENTIFIER = com.esi.smashbook2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.juliarhee.smashbook2;
 				PRODUCT_NAME = Smashbook;
 				SWIFT_OBJC_BRIDGING_HEADER = "Smashbook/Smashbook-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -623,12 +555,13 @@
 		};
 		13B07F951A680F5B00A75B9A /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = A22DE7AC3BE31EF612771E73 /* Pods-Smashbook.release.xcconfig */;
+			baseConfigurationReference = C34D594F44DD15B35AA4F683 /* Pods-Smashbook.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = Smashbook/Smashbook.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 5W7Y2BUALC;
 				INFOPLIST_FILE = Smashbook/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -642,7 +575,7 @@
 					"-lc++",
 				);
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
-				PRODUCT_BUNDLE_IDENTIFIER = com.esi.smashbook2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.juliarhee.smashbook2;
 				PRODUCT_NAME = Smashbook;
 				SWIFT_OBJC_BRIDGING_HEADER = "Smashbook/Smashbook-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
@@ -769,39 +702,14 @@
 			};
 			name = Release;
 		};
-		934704310C9C490A950719FB /* Debug */ = {
+		9DB06B9CBDBA4C199AE5E418 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 135AB9A4B25093FD04415F0B /* Pods-SmashbookShareExtension.debug.xcconfig */;
+			baseConfigurationReference = 7E30F1C580DBA0EBE75A5CEA /* Pods-SmashbookShareExtension.release.xcconfig */;
 			buildSettings = {
 				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_ENTITLEMENTS = SmashbookShareExtension/SmashbookShareExtension.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
-				ENABLE_ON_DEMAND_RESOURCES = NO;
-				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = SmashbookShareExtension/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.1;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-					"@executable_path/../../Frameworks",
-				);
-				MARKETING_VERSION = 1.0.0;
-				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_DEBUG";
-				PRODUCT_BUNDLE_IDENTIFIER = com.esi.smashbook2.ShareExtension;
-				PRODUCT_NAME = SmashbookShareExtension;
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
-				SWIFT_VERSION = 5.0;
-				VERSIONING_SYSTEM = "apple-generic";
-			};
-			name = Debug;
-		};
-		95D5A0BA949240BA99A6392C /* Release */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = C936864140CE620CCBB532C0 /* Pods-SmashbookShareExtension.release.xcconfig */;
-			buildSettings = {
-				CLANG_ENABLE_MODULES = YES;
-				CODE_SIGN_ENTITLEMENTS = SmashbookShareExtension/SmashbookShareExtension.entitlements;
-				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 5W7Y2BUALC;
 				ENABLE_ON_DEMAND_RESOURCES = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = SmashbookShareExtension/Info.plist;
@@ -813,7 +721,7 @@
 				);
 				MARKETING_VERSION = 1.0.0;
 				OTHER_SWIFT_FLAGS = "$(inherited) -D EXPO_CONFIGURATION_RELEASE";
-				PRODUCT_BUNDLE_IDENTIFIER = com.esi.smashbook2.ShareExtension;
+				PRODUCT_BUNDLE_IDENTIFIER = com.juliarhee.smashbook2.ShareExtension;
 				PRODUCT_NAME = SmashbookShareExtension;
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";
@@ -823,20 +731,20 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		0705CEBD09E040A4829421EB /* Build configuration list for PBXNativeTarget "SmashbookShareExtension" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				934704310C9C490A950719FB /* Debug */,
-				95D5A0BA949240BA99A6392C /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
 		13B07F931A680F5B00A75B9A /* Build configuration list for PBXNativeTarget "Smashbook" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				13B07F941A680F5B00A75B9A /* Debug */,
 				13B07F951A680F5B00A75B9A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		4A7E4A761CD646768D7203C0 /* Build configuration list for PBXNativeTarget "SmashbookShareExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				12CCA2B9CB28484FB13FE37E /* Debug */,
+				9DB06B9CBDBA4C199AE5E418 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

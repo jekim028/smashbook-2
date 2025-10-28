@@ -38,20 +38,15 @@ const AddContentModal: React.FC<AddContentModalProps> = ({ visible, onClose }): 
 
     setIsLoading(true);
     try {
-      console.log('Loading friends for user:', user.uid);
       const friendsRef = collection(db, 'friendships');
       const q = query(friendsRef, where('userId', '==', user.uid));
       const querySnapshot = await getDocs(q);
       
-      console.log('Found friendships:', querySnapshot.docs.length);
-      
       const friendsList = await Promise.all(
         querySnapshot.docs.map(async (docSnapshot) => {
           const friendId = docSnapshot.data().friendId;
-          console.log('Fetching friend data for ID:', friendId);
           const friendDoc = await getDoc(doc(db, 'users', friendId));
           const friendData = friendDoc.data();
-          console.log('Friend data:', friendData);
           return { 
             id: friendId,
             email: friendData?.email || '',
@@ -60,10 +55,9 @@ const AddContentModal: React.FC<AddContentModalProps> = ({ visible, onClose }): 
         })
       );
       
-      console.log('Final friends list:', friendsList);
       setFriends(friendsList);
     } catch (error) {
-      console.error('Error loading friends:', error);
+      // Silently fail
     } finally {
       setIsLoading(false);
     }
@@ -94,12 +88,9 @@ const AddContentModal: React.FC<AddContentModalProps> = ({ visible, onClose }): 
 
     try {
       // Fetch link metadata
-      console.log('Fetching link metadata...');
       const metadata = await getLinkMetadata(link);
 
       // Save link to Firestore with metadata
-      console.log('Saving link to Firestore');
-      console.log(metadata);
       const docRef = await addDoc(collection(db, 'memories'), {
         type: 'link',
         content: {
@@ -116,7 +107,6 @@ const AddContentModal: React.FC<AddContentModalProps> = ({ visible, onClose }): 
         isFavorite: false,
         sharedWith: selectedFriends,
       });
-      console.log('Document written with ID:', docRef.id);
 
       Alert.alert('Success', 'Link saved successfully!');
       setLink('');
@@ -124,7 +114,6 @@ const AddContentModal: React.FC<AddContentModalProps> = ({ visible, onClose }): 
       setSelectedFriends([]);
       onClose();
     } catch (error: any) {
-      console.error('Error saving link:', error);
       setError(`Failed to save link: ${error.message || 'Unknown error'}`);
     } finally {
       setIsUploading(false);

@@ -4,9 +4,14 @@ import { collection, doc, DocumentData, getDoc, onSnapshot, query, Timestamp, up
 import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, Dimensions, FlatList, Linking, SafeAreaView, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { auth, db } from '../../constants/Firebase';
+import { useSharedContent } from '../../hooks/useSharedContent';
 import AddContentModal from './AddContentModal';
 import AddMediaModal from './AddMediaModal';
 import DayDivider from './DayDivider';
+import DayMetadataModal from './DayMetadataModal';
+import DraggableMemoryGrid from './DraggableMemoryGrid';
+import FilterChips from './FilterChips';
+import FilterDropdown, { FilterType } from './FilterDropdown';
 import MediaDetailModal from './MediaDetailModal';
 import MemoryCard from './MemoryCard';
 import MemoryOptionsModal from './MemoryOptionsModal';
@@ -21,6 +26,32 @@ const getDateString = (timestamp: Timestamp): string => {
 const createDateFromString = (dateString: string): Date => {
   const [year, month, day] = dateString.split('-').map(Number);
   return new Date(year, month - 1, day, 12, 0, 0); // Set to noon to avoid timezone issues
+};
+
+// Helper function to determine filter type from memory
+const getMemoryFilterType = (memory: any): FilterType => {
+  const type = memory.type;
+  
+  // Handle link types with special logic
+  if (type === 'link' && memory.content?.url) {
+    const url = memory.content.url.toLowerCase();
+    if (url.includes('instagram.com')) {
+      return 'instagram';
+    }
+    if (url.includes('tiktok.com')) {
+      return 'tiktok';
+    }
+    return 'link';
+  }
+  
+  // Map other types
+  if (type === 'photo') return 'photo';
+  if (type === 'note' || type === 'text') return 'note';
+  if (type === 'reel') return 'instagram';
+  if (type === 'tiktok') return 'tiktok';
+  
+  // Default fallback
+  return 'text';
 };
 
 // Define our data structures for feed items
@@ -62,6 +93,10 @@ const CARD_HEIGHT = CARD_WIDTH * 1.3;
 
 export const MemoryFeed: React.FC = () => {
   const router = useRouter();
+  
+  // Auto-import shared content from share extension
+  useSharedContent();
+  
   const [currentDate, setCurrentDate] = useState(() => {
     const today = new Date();
     return today;
@@ -82,6 +117,27 @@ export const MemoryFeed: React.FC = () => {
   const [isMemoryOptionsModalVisible, setIsMemoryOptionsModalVisible] = useState(false);
   const [isMediaDetailVisible, setIsMediaDetailVisible] = useState(false);
   const [mediaDetailIndex, setMediaDetailIndex] = useState(0);
+  const [isDayMetadataModalVisible, setIsDayMetadataModalVisible] = useState(false);
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [metadataRefreshKey, setMetadataRefreshKey] = useState(0);
+  const [selectedFilters, setSelectedFilters] = useState<FilterType[]>([]);
+  const [isFilterDropdownVisible, setIsFilterDropdownVisible] = useState(false);
+  const [filterButtonPosition, setFilterButtonPosition] = useState({ x: 0, y: 0, width: 0, height: 0 });
+  const filterButtonRef = useRef<TouchableOpacity>(null);
+  
+  // Track memories being deleted to prevent Firebase listener from restoring them
+  const deletingMemoriesRef = useRef<Set<string>>(new Set());
+  
+  // Debug logging for modal state
+  useEffect(() => {
+    if (isMemoryOptionsModalVisible && selectedMemory) {
+      console.log('[MemoryFeed] MemoryOptionsModal opened with:', {
+        memoryId: selectedMemory.id,
+        type: selectedMemory.type,
+        hasDeleteHandler: !!handleDeleteMemory
+      });
+    }
+  }, [isMemoryOptionsModalVisible, selectedMemory]);
   
   // State for floating date header
   const [floatingDate, setFloatingDate] = useState<Date | null>(null);
@@ -109,7 +165,7 @@ export const MemoryFeed: React.FC = () => {
   ];
 
   // Helper to flatten all media into a single array for swiping
-  const allMedia = memories.filter(m => ['photo', 'video', 'link'].includes(m.type));
+  const allMedia = memories.filter(m => ['photo', 'video', 'link', 'text', 'note'].includes(m.type));
 
   // Group memories by date for our feed
   const memoryGroups = React.useMemo(() => {
@@ -133,6 +189,70 @@ export const MemoryFeed: React.FC = () => {
       id: `group-${dateString}`
     })).sort((a, b) => a.date.getTime() - b.date.getTime()); // Sort groups oldest to newest
   }, [memories]);
+
+  // Calculate available filters and their counts
+  const availableFilters = React.useMemo(() => {
+    const filterCounts = new Map<FilterType, number>();
+    
+    memories.forEach(memory => {
+      const filterType = getMemoryFilterType(memory);
+      filterCounts.set(filterType, (filterCounts.get(filterType) || 0) + 1);
+    });
+
+    const filterLabels: Record<FilterType, { label: string; icon: keyof typeof Ionicons.glyphMap }> = {
+      photo: { label: 'Photos', icon: 'image-outline' },
+      note: { label: 'Notes', icon: 'document-text-outline' },
+      instagram: { label: 'Instagram', icon: 'logo-instagram' },
+      tiktok: { label: 'TikTok', icon: 'musical-notes-outline' },
+      link: { label: 'Links', icon: 'link-outline' },
+      text: { label: 'Text', icon: 'text-outline' },
+    };
+
+    return Array.from(filterCounts.entries())
+      .map(([type, count]) => ({
+        type,
+        label: filterLabels[type].label,
+        icon: filterLabels[type].icon,
+        count,
+      }))
+      .sort((a, b) => b.count - a.count); // Sort by count descending
+  }, [memories]);
+
+  // Filter memories based on selected filters
+  const filteredMemories = React.useMemo(() => {
+    if (selectedFilters.length === 0) {
+      return memories;
+    }
+    
+    return memories.filter(memory => {
+      const filterType = getMemoryFilterType(memory);
+      return selectedFilters.includes(filterType);
+    });
+  }, [memories, selectedFilters]);
+
+  // Group filtered memories by date
+  const filteredMemoryGroups = React.useMemo(() => {
+    const groups: { [dateKey: string]: Memory[] } = {};
+    
+    filteredMemories.forEach(memory => {
+      const dateKey = getDateString(memory.date);
+      if (!groups[dateKey]) {
+        groups[dateKey] = [];
+      }
+      groups[dateKey].push(memory);
+    });
+    
+    return Object.entries(groups).map(([dateString, mems]) => ({
+      type: 'group' as const,
+      date: createDateFromString(dateString),
+      dateString,
+      memories: mems.sort((a, b) => a.date.toDate().getTime() - b.date.toDate().getTime()),
+      id: `group-${dateString}`
+    })).sort((a, b) => a.date.getTime() - b.date.getTime());
+  }, [filteredMemories]);
+
+  // Use filtered groups if filters are active, otherwise use all groups
+  const displayedMemoryGroups = selectedFilters.length > 0 ? filteredMemoryGroups : memoryGroups;
 
   // Set initial floating date to the newest date when memory groups change
   useEffect(() => {
@@ -182,6 +302,16 @@ export const MemoryFeed: React.FC = () => {
         isFavorite={memory.isFavorite}
         onPress={() => handleMemoryPress(memory)}
         onFavorite={() => handleFavorite(memory.id)}
+        onLongPress={() => {
+          console.log('[MemoryFeed] ========== LONG PRESS DETECTED ==========');
+          console.log('[MemoryFeed] Memory ID:', memory.id);
+          console.log('[MemoryFeed] Memory type:', memory.type);
+          console.log('[MemoryFeed] Setting selectedMemory...');
+          setSelectedMemory(memory);
+          console.log('[MemoryFeed] Setting isMemoryOptionsModalVisible to true...');
+          setIsMemoryOptionsModalVisible(true);
+          console.log('[MemoryFeed] State updates called');
+        }}
         style={{
           margin: itemMargin,
           width: itemWidth,
@@ -202,28 +332,35 @@ export const MemoryFeed: React.FC = () => {
   const renderMemoryGroup = ({ item }: { item: MemoryGroup }) => {
     const { memories: groupMemories, date } = item;
     
-    // Chunk memories into pairs for the grid
-    const rows = [];
-    for (let i = 0; i < groupMemories.length; i += numColumns) {
-      const rowMemories = groupMemories.slice(i, i + numColumns);
-      rows.push(rowMemories);
-    }
-    
     return (
       <View style={styles.memoryGroup}>
         {/* Add the date divider at the TOP of the group */}
-        <DayDivider date={date} width={screenWidth} />
+        <DayDivider 
+          date={date} 
+          width={screenWidth}
+          refreshKey={metadataRefreshKey}
+          onPress={() => {
+            setSelectedDate(date);
+            setIsDayMetadataModalVisible(true);
+          }}
+        />
         
-        {/* Render the memories in a grid */}
-        {rows.map((row, rowIndex) => (
-          <View key={`row-${rowIndex}`} style={styles.memoryRow}>
-            {row.map((memory, memIndex) => renderMemoryItem(memory, rowIndex * numColumns + memIndex))}
-            {/* Add empty space if the row isn't complete */}
-            {row.length < numColumns && Array.from({ length: numColumns - row.length }).map((_, i) => (
-              <View key={`empty-${i}`} style={{ width: itemWidth, margin: itemMargin }} />
-            ))}
-          </View>
-        ))}
+        {/* Render the memories */}
+        <DraggableMemoryGrid
+          memories={groupMemories}
+          onPress={handleMemoryPress}
+          onFavorite={handleFavorite}
+          onMemoryLongPress={(memory) => {
+            console.log('[MemoryFeed] ========== LONG PRESS DETECTED ==========');
+            console.log('[MemoryFeed] Memory ID:', memory.id);
+            console.log('[MemoryFeed] Memory type:', memory.type);
+            console.log('[MemoryFeed] Setting selectedMemory...');
+            setSelectedMemory(memory);
+            console.log('[MemoryFeed] Setting isMemoryOptionsModalVisible to true...');
+            setIsMemoryOptionsModalVisible(true);
+            console.log('[MemoryFeed] State updates called');
+          }}
+        />
       </View>
     );
   };
@@ -331,8 +468,22 @@ export const MemoryFeed: React.FC = () => {
     // Set up real-time listener for user's own memories
     const ownMemoriesUnsubscribe = onSnapshot(q, 
       (snapshot) => {
-      snapshot.forEach((doc) => {
-          allMemoriesMap.set(doc.id, { id: doc.id, ...doc.data() } as Memory);
+        snapshot.forEach((doc) => {
+          // Don't add memories that are currently being deleted
+          if (!deletingMemoriesRef.current.has(doc.id)) {
+            allMemoriesMap.set(doc.id, { id: doc.id, ...doc.data() } as Memory);
+          } else {
+            console.log('[MemoryFeed] Ignoring Firebase update for deleting memory:', doc.id);
+          }
+        });
+        
+        // Also remove from map if they were deleted
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === 'removed') {
+            console.log('[MemoryFeed] Firebase reported memory removed:', change.doc.id);
+            allMemoriesMap.delete(change.doc.id);
+            deletingMemoriesRef.current.delete(change.doc.id);
+          }
         });
         
         // Update memories state with all memories from the map
@@ -467,12 +618,33 @@ export const MemoryFeed: React.FC = () => {
     setIsSearchExpanded(!isSearchExpanded);
   };
 
+  const toggleFilterDropdown = () => {
+    if (filterButtonRef.current) {
+      filterButtonRef.current.measure((x, y, width, height, pageX, pageY) => {
+        setFilterButtonPosition({ x: pageX, y: pageY, width, height });
+        setIsFilterDropdownVisible(!isFilterDropdownVisible);
+      });
+    }
+  };
+
+  const handleFilterChange = (filters: FilterType[]) => {
+    setSelectedFilters(filters);
+  };
+
+  const handleRemoveFilter = (filter: FilterType) => {
+    setSelectedFilters(selectedFilters.filter(f => f !== filter));
+  };
+
+  const handleClearAllFilters = () => {
+    setSelectedFilters([]);
+  };
+
   const handleMemoryPress = (memory: Memory) => {
-    const mediaTypes = ['photo', 'video', 'link'];
+    const mediaTypes = ['photo', 'video', 'link', 'text', 'note'];
     if (mediaTypes.includes(memory.type)) {
       // Prepare the exact same sorted array as we'll use for the modal
       const mediaItems = memories
-        .filter(m => ['photo', 'video', 'link'].includes(m.type))
+        .filter(m => ['photo', 'video', 'link', 'text', 'note'].includes(m.type))
         .sort((a, b) => {
           const dateA = a.date.toDate().getTime();
           const dateB = b.date.toDate().getTime();
@@ -590,8 +762,32 @@ export const MemoryFeed: React.FC = () => {
   };
 
   const refreshMemories = () => {
-    // This will be triggered after successful upload to refresh the memories list
-    // No need to do anything since Firebase listener will update automatically
+    // This will be triggered after successful upload/deletion to refresh the memories list
+    // Firebase listener should update automatically, but we'll log it
+    console.log('[MemoryFeed] refreshMemories called - Firebase listener should auto-update');
+  };
+
+  const handleDeleteMemory = (memoryId: string) => {
+    console.log('[MemoryFeed] ========== OPTIMISTIC DELETE CALLED ==========');
+    console.log('[MemoryFeed] memoryId to delete:', memoryId);
+    console.log('[MemoryFeed] Current memories count:', memories.length);
+    
+    // Mark as being deleted to prevent Firebase listener from restoring it
+    console.log('[MemoryFeed] → Adding to deletingMemoriesRef...');
+    deletingMemoriesRef.current.add(memoryId);
+    console.log('[MemoryFeed] → deletingMemoriesRef now has:', deletingMemoriesRef.current.size, 'items');
+    
+    // Optimistically remove from UI immediately
+    setMemories(prevMemories => {
+      console.log('[MemoryFeed] → prevMemories count:', prevMemories.length);
+      const filtered = prevMemories.filter(m => m.id !== memoryId);
+      console.log('[MemoryFeed] → After filter count:', filtered.length);
+      console.log('[MemoryFeed] → Was memory found?', prevMemories.length !== filtered.length);
+      return filtered;
+    });
+    
+    console.log('[MemoryFeed] → setMemories called, state should update now');
+    console.log('[MemoryFeed] ========== OPTIMISTIC DELETE COMPLETE ==========');
   };
 
   const handleContentSizeChange = (width: number, height: number) => {
@@ -670,8 +866,16 @@ export const MemoryFeed: React.FC = () => {
             <TouchableOpacity style={styles.headerButton} onPress={handleSharePress}>
               <Ionicons name="share-outline" size={24} color={COLORS.text} />
             </TouchableOpacity>
-            <TouchableOpacity style={styles.headerButton} onPress={toggleSearch}>
-              <Ionicons name="search-outline" size={24} color={COLORS.text} />
+            <TouchableOpacity 
+              ref={filterButtonRef}
+              style={styles.headerButton} 
+              onPress={toggleFilterDropdown}
+            >
+              <Ionicons 
+                name="funnel-outline" 
+                size={24} 
+                color={selectedFilters.length > 0 ? COLORS.accent : COLORS.text} 
+              />
             </TouchableOpacity>
             <TouchableOpacity 
               style={styles.headerButton}
@@ -715,10 +919,17 @@ export const MemoryFeed: React.FC = () => {
           )}
         </Animated.View>
 
+        {/* Filter Chips */}
+        <FilterChips
+          selectedFilters={selectedFilters}
+          onRemoveFilter={handleRemoveFilter}
+          onClearAll={handleClearAllFilters}
+        />
+
         {/* Memory groups with dividers */}
         <FlatList
           ref={flatListRef}
-          data={memoryGroups}
+          data={displayedMemoryGroups}
           renderItem={renderMemoryGroup}
           keyExtractor={item => item.id}
           showsVerticalScrollIndicator={false}
@@ -786,17 +997,33 @@ export const MemoryFeed: React.FC = () => {
         {selectedMemory && (
           <MemoryOptionsModal
             visible={isMemoryOptionsModalVisible}
-            onClose={() => setIsMemoryOptionsModalVisible(false)}
+            onClose={() => {
+              console.log('[MemoryFeed] MemoryOptionsModal closing');
+              setIsMemoryOptionsModalVisible(false);
+            }}
             memoryId={selectedMemory.id}
             currentCaption={selectedMemory.content?.caption || ''}
             onSuccess={refreshMemories}
+            onDelete={handleDeleteMemory}
+          />
+        )}
+
+        {selectedDate && (
+          <DayMetadataModal
+            visible={isDayMetadataModalVisible}
+            onClose={() => setIsDayMetadataModalVisible(false)}
+            date={selectedDate}
+            onSuccess={() => {
+              setMetadataRefreshKey(prev => prev + 1);
+              refreshMemories();
+            }}
           />
         )}
 
         <MediaDetailModal
           visible={isMediaDetailVisible}
           mediaList={memories
-            .filter(m => ['photo', 'video', 'link'].includes(m.type))
+            .filter(m => ['photo', 'video', 'link', 'text', 'note'].includes(m.type))
             .sort((a, b) => {
               const dateA = a.date.toDate().getTime();
               const dateB = b.date.toDate().getTime();
@@ -810,7 +1037,8 @@ export const MemoryFeed: React.FC = () => {
                 sharedBy: m.content?.sharedBy || null,
                 previewImage: m.content?.previewImage || null,
                 title: m.content?.title || null,
-                url: m.content?.url || null
+                url: m.content?.url || null,
+                text: m.content?.text || null
               },
               isFavorite: m.isFavorite,
               caption: m.content?.caption || '',
@@ -836,6 +1064,16 @@ export const MemoryFeed: React.FC = () => {
               );
             }
           }}
+        />
+
+        {/* Filter Dropdown */}
+        <FilterDropdown
+          visible={isFilterDropdownVisible}
+          onClose={() => setIsFilterDropdownVisible(false)}
+          availableFilters={availableFilters}
+          selectedFilters={selectedFilters}
+          onFilterChange={handleFilterChange}
+          buttonPosition={filterButtonPosition}
         />
       </Animated.View>
     </SafeAreaView>

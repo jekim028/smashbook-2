@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  
+  <!-- Primary Meta Tags -->
+  <title>View my Smashbook</title>
+  <meta name="title" content="View my Smashbook">
+  <meta name="description" content="Check out my day on Smashbook! Tap to see my memories.">
+  
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://smashbook.app/">
+  <meta property="og:title" content="View my Smashbook">
+  <meta property="og:description" content="Check out my day on Smashbook! Tap to see my memories.">
+  <meta property="og:image" content="https://smashbook.app/og-image.png">
+  
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:url" content="https://smashbook.app/">
+  <meta property="twitter:title" content="View my Smashbook">
+  <meta property="twitter:description" content="Check out my day on Smashbook! Tap to see my memories.">
+  <meta property="twitter:image" content="https://smashbook.app/og-image.png">
+  
+  <!-- iOS Universal Links -->
+  <meta name="apple-itunes-app" content="app-id=YOUR_APP_ID, app-argument=smashbook2://day/">
+  
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+      background: linear-gradient(135deg, #fdfcf8 0%, #fff5e6 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 500px;
+      width: 100%;
+      background: white;
+      border-radius: 24px;
+      padding: 40px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+      text-align: center;
+    }
+    
+    .icon {
+      font-size: 64px;
+      margin-bottom: 24px;
+    }
+    
+    h1 {
+      color: #1A3140;
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 16px;
+    }
+    
+    p {
+      color: #8E8E93;
+      font-size: 18px;
+      line-height: 1.6;
+      margin-bottom: 32px;
+    }
+    
+    .button {
+      display: inline-block;
+      background: #FF914D;
+      color: white;
+      padding: 16px 32px;
+      border-radius: 12px;
+      font-size: 18px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 12px rgba(255, 145, 77, 0.3);
+    }
+    
+    .button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 16px rgba(255, 145, 77, 0.4);
+    }
+    
+    .button:active {
+      transform: translateY(0);
+    }
+    
+    .spinner {
+      display: none;
+      width: 40px;
+      height: 40px;
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #FF914D;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 20px auto;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="icon">📚</div>
+    <h1>View my Smashbook</h1>
+    <p id="message">Loading your shared day...</p>
+    <div class="spinner" id="spinner"></div>
+    <a href="#" class="button" id="openButton" style="display: none;">Open in Smashbook</a>
+  </div>
+
+  <script>
+    // Parse the URL to get the share ID
+    const urlParams = new URLSearchParams(window.location.search);
+    const shareId = window.location.pathname.split('/day/')[1];
+    
+    const messageEl = document.getElementById('message');
+    const buttonEl = document.getElementById('openButton');
+    const spinnerEl = document.getElementById('spinner');
+    
+    if (shareId) {
+      // Try to open the app directly with deep link
+      const deepLink = `smashbook2://day/${shareId}`;
+      const webLink = window.location.href;
+      
+      messageEl.textContent = 'Check out my day on Smashbook! Tap below to see my memories.';
+      buttonEl.style.display = 'inline-block';
+      buttonEl.href = deepLink;
+      
+      // For iOS, try to open the app automatically
+      if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+        // Try to open the app
+        window.location.href = deepLink;
+        
+        // After a delay, if still on the page, user doesn't have the app
+        setTimeout(() => {
+          messageEl.textContent = 'Get Smashbook to view this day! Or visit the App Store to download.';
+          buttonEl.textContent = 'Get Smashbook';
+          buttonEl.href = 'https://apps.apple.com/app/smashbook'; // Update with real App Store link
+        }, 2000);
+      }
+      
+      // Button click handler
+      buttonEl.addEventListener('click', (e) => {
+        // Try deep link first
+        window.location.href = deepLink;
+        
+        // Fallback for desktop or if app not installed
+        setTimeout(() => {
+          if (document.hidden) {
+            // App opened successfully
+            return;
+          }
+          // App not installed, show message
+          messageEl.textContent = 'Smashbook app not found. Please install it from the App Store.';
+        }, 1500);
+      });
+    } else {
+      messageEl.textContent = 'Invalid share link. Please check the URL and try again.';
+    }
+  </script>
+</body>
+</html>
+
